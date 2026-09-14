@@ -70,10 +70,10 @@ interface ChenDiagramData {
 // Calculate attribute oval radius based on text length
 function getAttributeDimensions(name: string, isSingleTable: boolean) {
   const clean = name.trim().toUpperCase();
-  const basePad = isSingleTable ? 24 : 18;
-  const charWidth = isSingleTable ? 6.4 : 5.6;
-  const rx = Math.max(isSingleTable ? 48 : 42, Math.round(clean.length * charWidth + basePad));
-  const ry = isSingleTable ? 24 : 21;
+  const charWidth = 7.2;
+  const padding = isSingleTable ? 30 : 24;
+  const rx = Math.max(isSingleTable ? 48 : 42, Math.round((clean.length * charWidth) / 2 + padding));
+  const ry = isSingleTable ? 24 : 22;
   return { rx, ry, label: clean };
 }
 
@@ -83,6 +83,74 @@ function getEntityDimensions(name: string, isSingleTable: boolean) {
   const width = Math.max(isSingleTable ? 170 : 150, Math.round(clean.length * (isSingleTable ? 13 : 11) + 48));
   const height = isSingleTable ? 54 : 48;
   return { width, height, label: clean };
+}
+
+// Guaranteed non-overlapping attribute row layout
+function layoutAttributesInRow(
+  cols: Column[],
+  centerX: number,
+  baseY: number,
+  arcDirection: number = 0,
+  gap: number = 28,
+  isSingleTable: boolean = false
+) {
+  const dims = cols.map((c) => getAttributeDimensions(c.name, isSingleTable));
+  const n = cols.length;
+  if (n === 0) return [];
+
+  // Calculate pairwise exact offsets so:
+  // leftEdge[i] - rightEdge[i-1] is exactly `gap`
+  const offsets: number[] = [0];
+  for (let i = 1; i < n; i++) {
+    offsets.push(offsets[i - 1] + dims[i - 1].rx + dims[i].rx + gap);
+  }
+  const totalSpan = offsets[n - 1];
+  const startX = centerX - totalSpan / 2;
+
+  return cols.map((col, i) => {
+    const dim = dims[i];
+    const x = startX + offsets[i];
+    const norm = n > 1 ? (i - (n - 1) / 2) / ((n - 1) / 2) : 0;
+    const y = baseY + arcDirection * (norm * norm * 14);
+    return {
+      col,
+      dim,
+      x,
+      y,
+    };
+  });
+}
+
+// Helper to push attributes to the master list with connection lines
+function pushAttributes(
+  placed: ReturnType<typeof layoutAttributesInRow>,
+  entity: EntityLayout,
+  attributes: AttributeLayout[],
+  connectorEdge: "top" | "bottom"
+) {
+  const n = placed.length;
+  placed.forEach((p, idx) => {
+    const entityContactX =
+      entity.centerX + (n > 1 ? (idx - (n - 1) / 2) * (entity.width / (n + 1)) : 0);
+    const entityContactY =
+      connectorEdge === "top" ? entity.y : entity.y + entity.height;
+    const attrContactY =
+      connectorEdge === "top" ? p.y + p.dim.ry : p.y - p.dim.ry;
+
+    attributes.push({
+      id: `${entity.id}_${p.col.name}`,
+      name: p.dim.label,
+      isPk: !!p.col.pk,
+      type: p.col.type,
+      x: p.x,
+      y: p.y,
+      rx: p.dim.rx,
+      ry: p.dim.ry,
+      entityId: entity.id,
+      lineStart: { x: entityContactX, y: entityContactY },
+      lineEnd: { x: p.x, y: attrContactY },
+    });
+  });
 }
 
 // Detect foreign key relationships between tables
@@ -100,7 +168,6 @@ function detectRelationships(tables: Table[]) {
           relName: deriveRelName(table.name, col.fk.table),
         });
       } else if (col.name.toLowerCase().endsWith("_id") || col.name.toLowerCase().startsWith("id_")) {
-        // Inferred foreign key
         const potentialTarget = col.name.toLowerCase().replace(/_id$/, "").replace(/^id_/, "");
         const matched = tables.find(
           (t) =>
@@ -170,12 +237,12 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
 
   if (isSingle) {
     // -------------------------------------------------------------
-    // CASE 1: Single Entity (Generous spacing, centered, elegant arc)
+    // CASE 1: Single Entity (Spacious, centered, zero overlap)
     // -------------------------------------------------------------
     const table = schema[0];
     const { width, height, label } = getEntityDimensions(table.name, true);
-    const centerX = 460;
-    const centerY = 140;
+    const centerX = 500;
+    const centerY = 160;
 
     const entLayout: EntityLayout = {
       id: table.name,
@@ -190,112 +257,31 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
     entities.push(entLayout);
 
     const cols = table.columns;
-    const N = cols.length;
-
-    if (N <= 6) {
-      // Fan out in a single wide row / arc below the entity
-      const attrDims = cols.map((c) => getAttributeDimensions(c.name, true));
-      // Generous horizontal spacing so ovals never crowd or overlap
-      const maxRx = Math.max(...attrDims.map((d) => d.rx));
-      const stepX = Math.max(140, maxRx * 2 + 32);
-      const totalWidth = (N - 1) * stepX;
-      const startX = centerX - totalWidth / 2;
-
-      cols.forEach((col, idx) => {
-        const dim = attrDims[idx];
-        const attrX = startX + idx * stepX;
-        // Subtle parabolic arc for aesthetics
-        const arcCurve = Math.abs(idx - (N - 1) / 2) * 16;
-        const attrY = centerY + 155 + arcCurve;
-
-        const entityContactX = centerX + (idx - (N - 1) / 2) * (width / Math.max(N + 1, 3));
-        const entityContactY = centerY + height / 2;
-
-        attributes.push({
-          id: `${table.name}_${col.name}`,
-          name: dim.label,
-          isPk: !!col.pk,
-          type: col.type,
-          x: attrX,
-          y: attrY,
-          rx: dim.rx,
-          ry: dim.ry,
-          entityId: table.name,
-          lineStart: { x: entityContactX, y: entityContactY },
-          lineEnd: { x: attrX, y: attrY - dim.ry },
-        });
-      });
+    if (cols.length <= 6) {
+      const placed = layoutAttributesInRow(cols, centerX, centerY + 160, 1, 36, true);
+      pushAttributes(placed, entLayout, attributes, "bottom");
     } else {
-      // Split into top and bottom tiers for large number of columns
-      const half = Math.ceil(N / 2);
+      const half = Math.ceil(cols.length / 2);
       const topCols = cols.slice(0, half);
       const botCols = cols.slice(half);
 
-      // Top Tier
-      const topDims = topCols.map((c) => getAttributeDimensions(c.name, true));
-      const topStep = Math.max(135, Math.max(...topDims.map((d) => d.rx)) * 2 + 28);
-      const topWidth = (topCols.length - 1) * topStep;
-      const topStartX = centerX - topWidth / 2;
+      const placedTop = layoutAttributesInRow(topCols, centerX, centerY - 150, -1, 32, true);
+      pushAttributes(placedTop, entLayout, attributes, "top");
 
-      topCols.forEach((col, idx) => {
-        const dim = topDims[idx];
-        const attrX = topStartX + idx * topStep;
-        const arc = Math.abs(idx - (topCols.length - 1) / 2) * 14;
-        const attrY = centerY - 145 - arc;
-
-        attributes.push({
-          id: `${table.name}_${col.name}`,
-          name: dim.label,
-          isPk: !!col.pk,
-          type: col.type,
-          x: attrX,
-          y: attrY,
-          rx: dim.rx,
-          ry: dim.ry,
-          entityId: table.name,
-          lineStart: { x: centerX + (idx - (topCols.length - 1) / 2) * (width / (topCols.length + 1)), y: centerY - height / 2 },
-          lineEnd: { x: attrX, y: attrY + dim.ry },
-        });
-      });
-
-      // Bottom Tier
-      const botDims = botCols.map((c) => getAttributeDimensions(c.name, true));
-      const botStep = Math.max(135, Math.max(...botDims.map((d) => d.rx)) * 2 + 28);
-      const botWidth = (botCols.length - 1) * botStep;
-      const botStartX = centerX - botWidth / 2;
-
-      botCols.forEach((col, idx) => {
-        const dim = botDims[idx];
-        const attrX = botStartX + idx * botStep;
-        const arc = Math.abs(idx - (botCols.length - 1) / 2) * 14;
-        const attrY = centerY + 145 + arc;
-
-        attributes.push({
-          id: `${table.name}_${col.name}`,
-          name: dim.label,
-          isPk: !!col.pk,
-          type: col.type,
-          x: attrX,
-          y: attrY,
-          rx: dim.rx,
-          ry: dim.ry,
-          entityId: table.name,
-          lineStart: { x: centerX + (idx - (botCols.length - 1) / 2) * (width / (botCols.length + 1)), y: centerY + height / 2 },
-          lineEnd: { x: attrX, y: attrY - dim.ry },
-        });
-      });
+      const placedBot = layoutAttributesInRow(botCols, centerX, centerY + 150, 1, 32, true);
+      pushAttributes(placedBot, entLayout, attributes, "bottom");
     }
   } else if (schema.length === 2) {
     // -------------------------------------------------------------
-    // CASE 2: Two Entities (Side-by-side with relationship diamond)
+    // CASE 2: Two Entities (Orthogonal spacing, diamond between)
     // -------------------------------------------------------------
     const t1 = schema[0];
     const t2 = schema[1];
     const d1 = getEntityDimensions(t1.name, false);
     const d2 = getEntityDimensions(t2.name, false);
 
-    const c1 = { x: 260, y: 240 };
-    const c2 = { x: 800, y: 240 };
+    const c1 = { x: 280, y: 260 };
+    const c2 = { x: 1040, y: 260 };
 
     const ent1: EntityLayout = {
       id: t1.name,
@@ -319,7 +305,6 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
     };
     entities.push(ent1, ent2);
 
-    // Relationship diamond
     const rel = rels.length > 0 ? rels[0] : { from: t1.name, to: t2.name, relName: "RELATES_TO" };
     relationships.push({
       id: `rel_${t1.name}_${t2.name}`,
@@ -332,19 +317,37 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
       toPoint: { x: c2.x - d2.width / 2, y: c2.y },
       cardinalityFrom: "1",
       cardinalityTo: "N",
-      cardFromPoint: { x: c1.x + d1.width / 2 + 35, y: c1.y - 12 },
-      cardToPoint: { x: c2.x - d2.width / 2 - 35, y: c2.y - 12 },
+      cardFromPoint: { x: c1.x + d1.width / 2 + 35, y: c1.y - 14 },
+      cardToPoint: { x: c2.x - d2.width / 2 - 35, y: c2.y - 14 },
     });
 
-    // Spread attributes for Table 1 (arc above/below)
-    layoutEntityAttributes(t1, ent1, attributes, "split");
-    // Spread attributes for Table 2 (arc above/below)
-    layoutEntityAttributes(t2, ent2, attributes, "split");
+    // Attributes for t1
+    if (t1.columns.length <= 4) {
+      const placed = layoutAttributesInRow(t1.columns, ent1.centerX, ent1.y - 100, -1, 28, false);
+      pushAttributes(placed, ent1, attributes, "top");
+    } else {
+      const half = Math.ceil(t1.columns.length / 2);
+      const pTop = layoutAttributesInRow(t1.columns.slice(0, half), ent1.centerX, ent1.y - 100, -1, 26, false);
+      pushAttributes(pTop, ent1, attributes, "top");
+      const pBot = layoutAttributesInRow(t1.columns.slice(half), ent1.centerX, ent1.y + ent1.height + 100, 1, 26, false);
+      pushAttributes(pBot, ent1, attributes, "bottom");
+    }
+
+    // Attributes for t2
+    if (t2.columns.length <= 4) {
+      const placed = layoutAttributesInRow(t2.columns, ent2.centerX, ent2.y - 100, -1, 28, false);
+      pushAttributes(placed, ent2, attributes, "top");
+    } else {
+      const half = Math.ceil(t2.columns.length / 2);
+      const pTop = layoutAttributesInRow(t2.columns.slice(0, half), ent2.centerX, ent2.y - 100, -1, 26, false);
+      pushAttributes(pTop, ent2, attributes, "top");
+      const pBot = layoutAttributesInRow(t2.columns.slice(half), ent2.centerX, ent2.y + ent2.height + 100, 1, 26, false);
+      pushAttributes(pBot, ent2, attributes, "bottom");
+    }
   } else if (schema.length === 3) {
     // -------------------------------------------------------------
-    // CASE 3: Three Entities (e.g. Library, Healthcare, Triangle)
+    // CASE 3: Three Entities (Library, Healthcare, Triangle)
     // -------------------------------------------------------------
-    // Determine child/associative entity (has incoming references)
     let childIdx = 1;
     schema.forEach((t, idx) => {
       const isReferenced = t.columns.some((c) => c.fk || c.name.endsWith("_id"));
@@ -361,9 +364,9 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
     const dp2 = getEntityDimensions(p2.name, false);
     const dc = getEntityDimensions(child.name, false);
 
-    const cp1 = { x: 260, y: 140 };
-    const cp2 = { x: 800, y: 140 };
-    const cc = { x: 530, y: 440 };
+    const cp1 = { x: 280, y: 180 };
+    const cp2 = { x: 1040, y: 180 };
+    const cc = { x: 660, y: 520 };
 
     const ep1: EntityLayout = {
       id: p1.name,
@@ -406,14 +409,14 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
       name: relName1,
       fromTable: p1.name,
       toTable: child.name,
-      x: (cp1.x + cc.x) / 2 - 20,
+      x: (cp1.x + cc.x) / 2,
       y: (cp1.y + cc.y) / 2,
-      fromPoint: { x: cp1.x + 30, y: cp1.y + dp1.height / 2 },
-      toPoint: { x: cc.x - dc.width / 4, y: cc.y - dc.height / 2 },
+      fromPoint: { x: cp1.x + dp1.width / 4, y: cp1.y + dp1.height / 2 },
+      toPoint: { x: cc.x - dc.width / 3, y: cc.y - dc.height / 2 },
       cardinalityFrom: "1",
       cardinalityTo: "N",
-      cardFromPoint: { x: cp1.x + 50, y: cp1.y + dp1.height / 2 + 25 },
-      cardToPoint: { x: cc.x - dc.width / 4 - 30, y: cc.y - dc.height / 2 - 20 },
+      cardFromPoint: { x: cp1.x + dp1.width / 4 + 25, y: cp1.y + dp1.height / 2 + 25 },
+      cardToPoint: { x: cc.x - dc.width / 3 - 25, y: cc.y - dc.height / 2 - 20 },
     });
 
     relationships.push({
@@ -421,27 +424,31 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
       name: relName2,
       fromTable: p2.name,
       toTable: child.name,
-      x: (cp2.x + cc.x) / 2 + 20,
+      x: (cp2.x + cc.x) / 2,
       y: (cp2.y + cc.y) / 2,
-      fromPoint: { x: cp2.x - 30, y: cp2.y + dp2.height / 2 },
-      toPoint: { x: cc.x + dc.width / 4, y: cc.y - dc.height / 2 },
+      fromPoint: { x: cp2.x - dp2.width / 4, y: cp2.y + dp2.height / 2 },
+      toPoint: { x: cc.x + dc.width / 3, y: cc.y - dc.height / 2 },
       cardinalityFrom: "1",
       cardinalityTo: "N",
-      cardFromPoint: { x: cp2.x - 50, y: cp2.y + dp2.height / 2 + 25 },
-      cardToPoint: { x: cc.x + dc.width / 4 + 30, y: cc.y - dc.height / 2 - 20 },
+      cardFromPoint: { x: cp2.x - dp2.width / 4 - 25, y: cp2.y + dp2.height / 2 + 25 },
+      cardToPoint: { x: cc.x + dc.width / 3 + 25, y: cc.y - dc.height / 2 - 20 },
     });
 
-    // Attributes for p1 fan above
-    layoutEntityAttributes(p1, ep1, attributes, "above");
-    // Attributes for p2 fan above
-    layoutEntityAttributes(p2, ep2, attributes, "above");
-    // Attributes for child fan below
-    layoutEntityAttributes(child, ec, attributes, "below");
+    // Attributes for p1 fan above (clear zone)
+    const p1Attrs = layoutAttributesInRow(p1.columns, ep1.centerX, ep1.y - 95, -1, 28, false);
+    pushAttributes(p1Attrs, ep1, attributes, "top");
+
+    // Attributes for p2 fan above (clear zone)
+    const p2Attrs = layoutAttributesInRow(p2.columns, ep2.centerX, ep2.y - 95, -1, 28, false);
+    pushAttributes(p2Attrs, ep2, attributes, "top");
+
+    // Attributes for child fan below (clear zone)
+    const childAttrs = layoutAttributesInRow(child.columns, ec.centerX, ec.y + ec.height + 110, 1, 28, false);
+    pushAttributes(childAttrs, ec, attributes, "bottom");
   } else if (schema.length === 4) {
     // -------------------------------------------------------------
-    // CASE 4: Four Entities (e.g. Ecommerce or 4-table relational)
+    // CASE 4: Four Entities (e.g. Ecommerce: 2x2 Orthogonal Flow)
     // -------------------------------------------------------------
-    // Check if standard ecommerce (customers, products, orders, order_items)
     const findTable = (names: string[]) =>
       schema.find((t) => names.includes(t.name.toLowerCase())) ?? schema[0];
 
@@ -450,93 +457,138 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
     const tOrd = findTable(["orders", "sales", "loans"]);
     const tItems = findTable(["order_items", "order_details", "line_items"]);
 
-    // Assign positions
-    const posCust = { x: 200, y: 110 };
-    const posProd = { x: 880, y: 220 };
-    const posOrd = { x: 380, y: 380 };
-    const posItems = { x: 680, y: 620 };
+    // Left column at X = 280, Right column at X = 1140 (generous 860px distance)
+    // Row 0 at Y = 180, Row 1 at Y = 540 (360px vertical distance)
+    const posCust = { x: 280, y: 180 };
+    const posProd = { x: 1140, y: 180 };
+    const posOrd = { x: 280, y: 540 };
+    const posItems = { x: 1140, y: 540 };
 
-    const arranged = [
-      { t: tCust, pos: posCust, attrDir: "above_left" as const },
-      { t: tProd, pos: posProd, attrDir: "above_right" as const },
-      { t: tOrd, pos: posOrd, attrDir: "below_left" as const },
-      { t: tItems, pos: posItems, attrDir: "below" as const },
-    ];
+    const dimCust = getEntityDimensions(tCust.name, false);
+    const dimProd = getEntityDimensions(tProd.name, false);
+    const dimOrd = getEntityDimensions(tOrd.name, false);
+    const dimItems = getEntityDimensions(tItems.name, false);
 
-    arranged.forEach(({ t, pos, attrDir }) => {
-      const dim = getEntityDimensions(t.name, false);
-      const ent: EntityLayout = {
-        id: t.name,
-        name: dim.label,
-        x: pos.x - dim.width / 2,
-        y: pos.y - dim.height / 2,
-        width: dim.width,
-        height: dim.height,
-        centerX: pos.x,
-        centerY: pos.y,
-      };
-      entities.push(ent);
-      layoutEntityAttributes(t, ent, attributes, attrDir);
-    });
+    const entCust: EntityLayout = {
+      id: tCust.name,
+      name: dimCust.label,
+      x: posCust.x - dimCust.width / 2,
+      y: posCust.y - dimCust.height / 2,
+      width: dimCust.width,
+      height: dimCust.height,
+      centerX: posCust.x,
+      centerY: posCust.y,
+    };
+    const entProd: EntityLayout = {
+      id: tProd.name,
+      name: dimProd.label,
+      x: posProd.x - dimProd.width / 2,
+      y: posProd.y - dimProd.height / 2,
+      width: dimProd.width,
+      height: dimProd.height,
+      centerX: posProd.x,
+      centerY: posProd.y,
+    };
+    const entOrd: EntityLayout = {
+      id: tOrd.name,
+      name: dimOrd.label,
+      x: posOrd.x - dimOrd.width / 2,
+      y: posOrd.y - dimOrd.height / 2,
+      width: dimOrd.width,
+      height: dimOrd.height,
+      centerX: posOrd.x,
+      centerY: posOrd.y,
+    };
+    const entItems: EntityLayout = {
+      id: tItems.name,
+      name: dimItems.label,
+      x: posItems.x - dimItems.width / 2,
+      y: posItems.y - dimItems.height / 2,
+      width: dimItems.width,
+      height: dimItems.height,
+      centerX: posItems.x,
+      centerY: posItems.y,
+    };
 
-    // Relationships: Cust -> Ord, Ord -> Items, Prod -> Items
+    entities.push(entCust, entProd, entOrd, entItems);
+
+    // 1. Vertical Relationship: CUSTOMERS -> PLACES -> ORDERS
     relationships.push({
       id: `rel_${tCust.name}_${tOrd.name}`,
       name: "PLACES",
       fromTable: tCust.name,
       toTable: tOrd.name,
-      x: (posCust.x + posOrd.x) / 2 + 30,
-      y: (posCust.y + posOrd.y) / 2 - 20,
-      fromPoint: { x: posCust.x + 40, y: posCust.y + 24 },
-      toPoint: { x: posOrd.x - 30, y: posOrd.y - 24 },
+      x: posCust.x,
+      y: (posCust.y + posOrd.y) / 2,
+      fromPoint: { x: posCust.x, y: posCust.y + dimCust.height / 2 },
+      toPoint: { x: posOrd.x, y: posOrd.y - dimOrd.height / 2 },
       cardinalityFrom: "1",
       cardinalityTo: "N",
-      cardFromPoint: { x: posCust.x + 65, y: posCust.y + 50 },
-      cardToPoint: { x: posOrd.x - 45, y: posOrd.y - 45 },
+      cardFromPoint: { x: posCust.x + 22, y: posCust.y + dimCust.height / 2 + 30 },
+      cardToPoint: { x: posOrd.x + 22, y: posOrd.y - dimOrd.height / 2 - 30 },
     });
 
-    relationships.push({
-      id: `rel_${tOrd.name}_${tItems.name}`,
-      name: "CONTAINS",
-      fromTable: tOrd.name,
-      toTable: tItems.name,
-      x: (posOrd.x + posItems.x) / 2 - 20,
-      y: (posOrd.y + posItems.y) / 2,
-      fromPoint: { x: posOrd.x + 50, y: posOrd.y + 24 },
-      toPoint: { x: posItems.x - 60, y: posItems.y - 24 },
-      cardinalityFrom: "1",
-      cardinalityTo: "N",
-      cardFromPoint: { x: posOrd.x + 75, y: posOrd.y + 45 },
-      cardToPoint: { x: posItems.x - 80, y: posItems.y - 45 },
-    });
-
+    // 2. Vertical Relationship: PRODUCTS -> CONTAINS -> ORDER_ITEMS
     relationships.push({
       id: `rel_${tProd.name}_${tItems.name}`,
       name: "CONTAINS",
       fromTable: tProd.name,
       toTable: tItems.name,
-      x: (posProd.x + posItems.x) / 2 + 50,
-      y: (posProd.y + posItems.y) / 2 - 10,
-      fromPoint: { x: posProd.x - 30, y: posProd.y + 24 },
-      toPoint: { x: posItems.x + 60, y: posItems.y - 24 },
+      x: posProd.x,
+      y: (posProd.y + posItems.y) / 2,
+      fromPoint: { x: posProd.x, y: posProd.y + dimProd.height / 2 },
+      toPoint: { x: posItems.x, y: posItems.y - dimItems.height / 2 },
       cardinalityFrom: "1",
       cardinalityTo: "N",
-      cardFromPoint: { x: posProd.x - 50, y: posProd.y + 50 },
-      cardToPoint: { x: posItems.x + 80, y: posItems.y - 45 },
+      cardFromPoint: { x: posProd.x + 22, y: posProd.y + dimProd.height / 2 + 30 },
+      cardToPoint: { x: posItems.x + 22, y: posItems.y - dimItems.height / 2 - 30 },
     });
+
+    // 3. Horizontal Relationship: ORDERS -> CONTAINS -> ORDER_ITEMS
+    const midX = (posOrd.x + posItems.x) / 2;
+    relationships.push({
+      id: `rel_${tOrd.name}_${tItems.name}`,
+      name: "CONTAINS",
+      fromTable: tOrd.name,
+      toTable: tItems.name,
+      x: midX,
+      y: posOrd.y,
+      fromPoint: { x: posOrd.x + dimOrd.width / 2, y: posOrd.y },
+      toPoint: { x: posItems.x - dimItems.width / 2, y: posItems.y },
+      cardinalityFrom: "1",
+      cardinalityTo: "N",
+      cardFromPoint: { x: posOrd.x + dimOrd.width / 2 + 40, y: posOrd.y - 14 },
+      cardToPoint: { x: posItems.x - dimItems.width / 2 - 40, y: posItems.y - 14 },
+    });
+
+    // Attributes for CUSTOMERS (Placed comfortably ABOVE at Y = 80)
+    const custAttrs = layoutAttributesInRow(tCust.columns, entCust.centerX, entCust.y - 95, -1, 28, false);
+    pushAttributes(custAttrs, entCust, attributes, "top");
+
+    // Attributes for PRODUCTS (Placed comfortably ABOVE at Y = 80)
+    const prodAttrs = layoutAttributesInRow(tProd.columns, entProd.centerX, entProd.y - 95, -1, 28, false);
+    pushAttributes(prodAttrs, entProd, attributes, "top");
+
+    // Attributes for ORDERS (Placed comfortably BELOW at Y = 700)
+    const ordAttrs = layoutAttributesInRow(tOrd.columns, entOrd.centerX, entOrd.y + entOrd.height + 115, 1, 28, false);
+    pushAttributes(ordAttrs, entOrd, attributes, "bottom");
+
+    // Attributes for ORDER_ITEMS (Placed comfortably BELOW at Y = 700)
+    const itemAttrs = layoutAttributesInRow(tItems.columns, entItems.centerX, entItems.y + entItems.height + 115, 1, 28, false);
+    pushAttributes(itemAttrs, entItems, attributes, "bottom");
   } else {
     // -------------------------------------------------------------
-    // CASE 5: General N-Entity Layout (Grid with generous column zones)
+    // CASE 5: General N-Entity Layout (Collision-Free Grid)
     // -------------------------------------------------------------
     const colsCount = Math.min(3, Math.ceil(Math.sqrt(schema.length)));
-    const cellWidth = 440;
-    const cellHeight = 360;
+    const cellWidth = 620;
+    const cellHeight = 520;
 
     schema.forEach((table, idx) => {
       const colIdx = idx % colsCount;
       const rowIdx = Math.floor(idx / colsCount);
-      const centerX = 240 + colIdx * cellWidth;
-      const centerY = 180 + rowIdx * cellHeight;
+      const centerX = 320 + colIdx * cellWidth;
+      const centerY = 240 + rowIdx * cellHeight;
 
       const dim = getEntityDimensions(table.name, false);
       const ent: EntityLayout = {
@@ -550,7 +602,17 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
         centerY,
       };
       entities.push(ent);
-      layoutEntityAttributes(table, ent, attributes, "split");
+
+      if (table.columns.length <= 4) {
+        const placed = layoutAttributesInRow(table.columns, ent.centerX, ent.y - 100, -1, 28, false);
+        pushAttributes(placed, ent, attributes, "top");
+      } else {
+        const half = Math.ceil(table.columns.length / 2);
+        const pTop = layoutAttributesInRow(table.columns.slice(0, half), ent.centerX, ent.y - 100, -1, 26, false);
+        pushAttributes(pTop, ent, attributes, "top");
+        const pBot = layoutAttributesInRow(table.columns.slice(half), ent.centerX, ent.y + ent.height + 100, 1, 26, false);
+        pushAttributes(pBot, ent, attributes, "bottom");
+      }
     });
 
     // Add relationships between matching tables
@@ -610,7 +672,7 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
     maxY = Math.max(maxY, r.y + 45);
   });
 
-  const pad = isSingle ? 50 : 45;
+  const pad = isSingle ? 50 : 55;
   const vbMinX = Math.round(minX - pad);
   const vbMinY = Math.round(minY - pad);
   const vbWidth = Math.max(400, Math.round(maxX - minX + pad * 2));
@@ -629,170 +691,6 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
       centerY: vbMinY + vbHeight / 2,
     },
   };
-}
-
-// Helper to layout attributes around an entity
-function layoutEntityAttributes(
-  table: Table,
-  entity: EntityLayout,
-  attributes: AttributeLayout[],
-  direction: "above" | "below" | "split" | "above_left" | "above_right" | "below_left"
-) {
-  const cols = table.columns;
-  const N = cols.length;
-  if (N === 0) return;
-
-  const attrDims = cols.map((c) => getAttributeDimensions(c.name, false));
-
-  if (direction === "above") {
-    const step = Math.max(120, Math.max(...attrDims.map((d) => d.rx)) * 2 + 20);
-    const span = (N - 1) * step;
-    const startX = entity.centerX - span / 2;
-
-    cols.forEach((col, idx) => {
-      const dim = attrDims[idx];
-      const attrX = startX + idx * step;
-      const arc = Math.abs(idx - (N - 1) / 2) * 12;
-      const attrY = entity.y - 85 - arc;
-
-      attributes.push({
-        id: `${table.name}_${col.name}`,
-        name: dim.label,
-        isPk: !!col.pk,
-        type: col.type,
-        x: attrX,
-        y: attrY,
-        rx: dim.rx,
-        ry: dim.ry,
-        entityId: table.name,
-        lineStart: { x: entity.centerX + (idx - (N - 1) / 2) * (entity.width / (N + 1)), y: entity.y },
-        lineEnd: { x: attrX, y: attrY + dim.ry },
-      });
-    });
-  } else if (direction === "below") {
-    const step = Math.max(120, Math.max(...attrDims.map((d) => d.rx)) * 2 + 20);
-    const span = (N - 1) * step;
-    const startX = entity.centerX - span / 2;
-
-    cols.forEach((col, idx) => {
-      const dim = attrDims[idx];
-      const attrX = startX + idx * step;
-      const arc = Math.abs(idx - (N - 1) / 2) * 12;
-      const attrY = entity.y + entity.height + 85 + arc;
-
-      attributes.push({
-        id: `${table.name}_${col.name}`,
-        name: dim.label,
-        isPk: !!col.pk,
-        type: col.type,
-        x: attrX,
-        y: attrY,
-        rx: dim.rx,
-        ry: dim.ry,
-        entityId: table.name,
-        lineStart: { x: entity.centerX + (idx - (N - 1) / 2) * (entity.width / (N + 1)), y: entity.y + entity.height },
-        lineEnd: { x: attrX, y: attrY - dim.ry },
-      });
-    });
-  } else if (direction === "above_left" || direction === "above_right") {
-    // Fan angled upward toward left or right
-    const isLeft = direction === "above_left";
-    const stepX = isLeft ? -115 : 115;
-    cols.forEach((col, idx) => {
-      const dim = attrDims[idx];
-      const attrX = entity.centerX + (idx - (N - 1) / 2) * 115 + (isLeft ? -40 : 40);
-      const attrY = entity.y - 80 - Math.abs(idx - (N - 1) / 2) * 10;
-      attributes.push({
-        id: `${table.name}_${col.name}`,
-        name: dim.label,
-        isPk: !!col.pk,
-        type: col.type,
-        x: attrX,
-        y: attrY,
-        rx: dim.rx,
-        ry: dim.ry,
-        entityId: table.name,
-        lineStart: { x: entity.centerX, y: entity.y },
-        lineEnd: { x: attrX, y: attrY + dim.ry },
-      });
-    });
-  } else if (direction === "below_left") {
-    cols.forEach((col, idx) => {
-      const dim = attrDims[idx];
-      const attrX = entity.centerX - 120 + (idx - (N - 1) / 2) * 110;
-      const attrY = entity.y + entity.height + 80 + Math.abs(idx - (N - 1) / 2) * 10;
-      attributes.push({
-        id: `${table.name}_${col.name}`,
-        name: dim.label,
-        isPk: !!col.pk,
-        type: col.type,
-        x: attrX,
-        y: attrY,
-        rx: dim.rx,
-        ry: dim.ry,
-        entityId: table.name,
-        lineStart: { x: entity.centerX, y: entity.y + entity.height },
-        lineEnd: { x: attrX, y: attrY - dim.ry },
-      });
-    });
-  } else {
-    // SPLIT: Half above, half below
-    const half = Math.ceil(N / 2);
-    const top = cols.slice(0, half);
-    const bot = cols.slice(half);
-
-    // Top
-    const topDims = top.map((c) => getAttributeDimensions(c.name, false));
-    const topStep = Math.max(115, Math.max(...topDims.map((d) => d.rx)) * 2 + 18);
-    const topWidth = (top.length - 1) * topStep;
-    const topStartX = entity.centerX - topWidth / 2;
-
-    top.forEach((col, idx) => {
-      const dim = topDims[idx];
-      const attrX = topStartX + idx * topStep;
-      const attrY = entity.y - 75;
-
-      attributes.push({
-        id: `${table.name}_${col.name}`,
-        name: dim.label,
-        isPk: !!col.pk,
-        type: col.type,
-        x: attrX,
-        y: attrY,
-        rx: dim.rx,
-        ry: dim.ry,
-        entityId: table.name,
-        lineStart: { x: entity.centerX + (idx - (top.length - 1) / 2) * (entity.width / (top.length + 1)), y: entity.y },
-        lineEnd: { x: attrX, y: attrY + dim.ry },
-      });
-    });
-
-    // Bottom
-    const botDims = bot.map((c) => getAttributeDimensions(c.name, false));
-    const botStep = Math.max(115, Math.max(...botDims.map((d) => d.rx)) * 2 + 18);
-    const botWidth = (bot.length - 1) * botStep;
-    const botStartX = entity.centerX - botWidth / 2;
-
-    bot.forEach((col, idx) => {
-      const dim = botDims[idx];
-      const attrX = botStartX + idx * botStep;
-      const attrY = entity.y + entity.height + 75;
-
-      attributes.push({
-        id: `${table.name}_${col.name}`,
-        name: dim.label,
-        isPk: !!col.pk,
-        type: col.type,
-        x: attrX,
-        y: attrY,
-        rx: dim.rx,
-        ry: dim.ry,
-        entityId: table.name,
-        lineStart: { x: entity.centerX + (idx - (bot.length - 1) / 2) * (entity.width / (bot.length + 1)), y: entity.y + entity.height },
-        lineEnd: { x: attrX, y: attrY - dim.ry },
-      });
-    });
-  }
 }
 
 // -------------------------------------------------------------
@@ -948,7 +846,6 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
   // Download SVG
   const downloadSVG = () => {
     if (!svgRef.current) return;
-    // Clone SVG so pan/zoom transform does not affect the pristine exported SVG
     const clone = svgRef.current.cloneNode(true) as SVGSVGElement;
     const contentG = clone.querySelector("#chen-diagram-content");
     if (contentG) {
@@ -978,7 +875,6 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
     const img = new Image();
 
     img.onload = () => {
-      // Export at sharp high-DPI resolution
       canvas.width = Math.max(1400, Math.round(viewBox.width * 1.5));
       canvas.height = Math.max(800, Math.round(viewBox.height * 1.5));
       if (ctx) {
@@ -1141,7 +1037,7 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
         onMouseLeave={handleMouseUp}
         onDoubleClick={handleResetFit}
         className={`w-full relative overflow-hidden rounded-xl border border-[var(--border)] bg-zinc-950/70 select-none ${
-          isModal ? "flex-1 min-h-0" : "h-[460px] min-h-[420px]"
+          isModal ? "flex-1 min-h-0" : "h-[480px] min-h-[440px]"
         }`}
         style={{
           cursor: isDragging ? "grabbing" : "grab",
@@ -1186,7 +1082,7 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
                 x1={attr.lineStart.x}
                 y1={attr.lineStart.y}
                 x2={attr.x}
-                y2={attr.y}
+                y2={attr.lineEnd.y}
                 stroke="#475569"
                 strokeWidth="2"
                 strokeLinecap="round"
@@ -1269,7 +1165,7 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
             {diagramData.relationships.map((rel) => {
               const dw = 55;
               const dh = 30;
-              const points = `${rel.x},${rel.y - dh} ${rel.x + dw},${rel.y} ${rel.x},${rel.y + dh} ${rel.x - dw},${rel.y}`;
+              const points = `${rel.x},${rel.y - dw * 0.55} ${rel.x + dw},${rel.y} ${rel.x},${rel.y + dw * 0.55} ${rel.x - dw},${rel.y}`;
               return (
                 <g key={`rel_shape_${rel.id}`} filter="url(#chen-shadow)">
                   <polygon
@@ -1280,7 +1176,7 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
                   />
                   <text
                     x={rel.x}
-                    y={rel.y + 4}
+                    y={rel.y + 4.5}
                     fill="#ffffff"
                     fontSize="13"
                     fontWeight="bold"
