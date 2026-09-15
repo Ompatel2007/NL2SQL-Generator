@@ -193,7 +193,7 @@ export function ExplanationPanel({
               </p>
             </div>
 
-            <div
+            {/* <div
               className="border-t pt-3.5"
               style={{ borderColor: "var(--border)" }}
             >
@@ -213,7 +213,7 @@ export function ExplanationPanel({
               >
                 {algebraFor(current.stage, lastResult?.command)}
               </div>
-            </div>
+            </div> */}
           </div>
         )}
       </div>
