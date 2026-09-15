@@ -23,7 +23,7 @@ export interface HistoryItem {
   command?: SQLCommand;
 }
 
-export type Tab = "result" | "schema" | "theory";
+export type Tab = "result" | "schema" | "explanation" | "theory";
 
 export type ThemeId = "eclipse" | "lazuli" | "pearl" | "slate" | "volt";
 
@@ -78,6 +78,8 @@ export const THEME_CONFIGS: ThemeConfig[] = [
 export interface InputPanelProps {
   datasets: Dataset[];
   selectedDatasetId: string;
+  activeSchema?: Table[];
+  maxPanelHeight?: number;
   onDatasetChange: (id: string) => void;
   examples: DatasetExample[];
   nlInput: string;
@@ -103,6 +105,7 @@ export interface InputPanelProps {
   onToggleVoiceFeedback?: (enabled: boolean) => void;
   onOpenCreateModal?: () => void;
   onEditDataset?: (dataset: Dataset) => void;
+  onDeleteDataset?: (id: string) => void;
   onOpenGuide?: () => void;
   theme?: ThemeId;
 }

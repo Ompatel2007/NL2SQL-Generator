@@ -21,6 +21,15 @@ import {
 } from "@/lib/schema";
 import { executeSQL, type PipelineStep, type Row } from "@/lib/sqlEngine";
 import { speakText } from "@/lib/useSpeechRecognition";
+import { buildQueryExplanation, type QueryExplanation } from "@/lib/queryExplainer";
+import {
+  generateMarkdownReport,
+  generateTextReport,
+  downloadPdfReport,
+  downloadDocxReport,
+  triggerFileDownload,
+  type ReportExecutionData,
+} from "@/lib/reportGenerator";
 
 const CUSTOM_DATASETS_KEY = "nlp-sql-custom-datasets";
 
@@ -28,14 +37,15 @@ export default function Home() {
   const [theme, setTheme] = useState<ThemeId>("eclipse");
   const [activeSection, setActiveSection] = useState<NavSection>("workspace");
   const [customDatasets, setCustomDatasets] = useState<Dataset[]>([]);
+  const [deletedBuiltinIds, setDeletedBuiltinIds] = useState<string[]>([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState("ecommerce");
   const [isDatasetModalOpen, setIsDatasetModalOpen] = useState(false);
   const [datasetToEdit, setDatasetToEdit] = useState<Dataset | null>(null);
 
-  const allDatasets = useMemo(
-    () => [...DATASETS, ...customDatasets],
-    [customDatasets],
-  );
+  const allDatasets = useMemo(() => {
+    const activeBuiltins = DATASETS.filter((d) => !deletedBuiltinIds.includes(d.id));
+    return [...activeBuiltins, ...customDatasets];
+  }, [deletedBuiltinIds, customDatasets]);
 
   const selectedDataset = useMemo(
     () =>
@@ -68,11 +78,40 @@ export default function Home() {
   const [playing, setPlaying] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [tab, setTab] = useState<Tab>("result");
+  const [explanation, setExplanation] = useState<QueryExplanation | null>(null);
+  const [hasExecuted, setHasExecuted] = useState(false);
+  const [lastExecutionData, setLastExecutionData] = useState<ReportExecutionData | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Modals & Panels UI state
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"input" | "canvas" | "tools">("canvas");
+
+  // Dynamic Central Panel Height Measurement
+  const centerPanelRef = useRef<HTMLDivElement>(null);
+  const [centerHeight, setCenterHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const el = centerPanelRef.current;
+    if (!el) return;
+
+    const measureHeight = () => {
+      const h = Math.round(el.getBoundingClientRect().height);
+      if (h > 0) {
+        setCenterHeight(h);
+      }
+    };
+
+    measureHeight();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(() => {
+        measureHeight();
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+  }, [tab, activeSection, steps, finalRows, explanation]);
 
   const isDark = useMemo(() => theme !== "pearl", [theme]);
 
@@ -143,6 +182,16 @@ export default function Home() {
     } catch { }
 
     try {
+      const savedDeleted = localStorage.getItem("nlp-sql-deleted-builtins");
+      if (savedDeleted) {
+        const parsed = JSON.parse(savedDeleted);
+        if (Array.isArray(parsed)) {
+          setDeletedBuiltinIds(parsed);
+        }
+      }
+    } catch { }
+
+    try {
       const savedHistory = localStorage.getItem("nlp-sql-history");
       if (savedHistory) {
         const parsedHistory = JSON.parse(savedHistory) as HistoryItem[];
@@ -154,11 +203,17 @@ export default function Home() {
   const runQuery = useCallback(
     (query?: string, question?: string, schemaToUse?: Table[]) => {
       const q = (query ?? sql).trim();
-      if (!q) return;
+      if (!q) {
+        setError("Please enter SQL before executing.");
+        return;
+      }
       if (timer.current) clearInterval(timer.current);
       setPlaying(false);
       const schema = schemaToUse ?? activeSchema;
+      const startTime = performance.now();
       const result = executeSQL(q, schema);
+      const durationMs = Math.round(performance.now() - startTime);
+
       setSteps(result.steps);
       setFinalRows(result.finalRows);
       setColumns(result.columns);
@@ -169,6 +224,37 @@ export default function Home() {
       if (!result.error && result.updatedSchema) {
         setActiveSchema(result.updatedSchema);
       }
+
+      // Build explanation
+      const exp = buildQueryExplanation(
+        q,
+        schema,
+        result.steps,
+        result.finalRows,
+        result.columns,
+        result.statementType,
+        result.command,
+      );
+      setExplanation(exp);
+      setHasExecuted(true);
+
+      const execData: ReportExecutionData = {
+        sql: q,
+        nlQuestion: question,
+        inputMode: question ? "nl" : "sql",
+        datasetName: selectedDataset.name,
+        tables: schema.map((t) => t.name),
+        steps: result.steps,
+        finalRows: result.finalRows,
+        columns: result.columns,
+        explanation: exp,
+        error: result.error,
+        executionDurationMs: durationMs,
+        timestamp: new Date().toLocaleString(),
+        statementType: result.statementType,
+        command: result.command,
+      };
+      setLastExecutionData(execData);
 
       if (!result.error && result.steps.length) {
         const displayQuestion = (question ?? nlInput ?? q).trim() || q;
@@ -190,7 +276,7 @@ export default function Home() {
         });
       }
     },
-    [sql, nlInput, activeSchema],
+    [sql, nlInput, activeSchema, selectedDataset.name],
   );
 
   // Run initial query on mount once
@@ -215,11 +301,20 @@ export default function Home() {
       setColumns([]);
       setError(undefined);
       setActiveStep(0);
+      setExplanation(null);
+      setHasExecuted(false);
+      setLastExecutionData(null);
     },
     [allDatasets],
   );
 
   const resetDatabase = useCallback(() => {
+    if (deletedBuiltinIds.length > 0) {
+      setDeletedBuiltinIds([]);
+      try {
+        localStorage.removeItem("nlp-sql-deleted-builtins");
+      } catch { }
+    }
     setActiveSchema(getDefaultSchema(selectedDataset.id, allDatasets));
     setSql(selectedDataset.defaultQuery);
     setNlInput("");
@@ -229,7 +324,46 @@ export default function Home() {
     setColumns([]);
     setError(undefined);
     setActiveStep(0);
-  }, [selectedDataset, allDatasets]);
+    setExplanation(null);
+    setHasExecuted(false);
+    setLastExecutionData(null);
+  }, [selectedDataset, allDatasets, deletedBuiltinIds.length]);
+
+  const handleDeleteDataset = useCallback(
+    (id: string) => {
+      if (allDatasets.length <= 1) {
+        alert("At least one dataset must remain in the application.");
+        return;
+      }
+
+      const isCustom = customDatasets.some((d) => d.id === id);
+      if (isCustom) {
+        setCustomDatasets((prev) => {
+          const next = prev.filter((d) => d.id !== id);
+          try {
+            localStorage.setItem(CUSTOM_DATASETS_KEY, JSON.stringify(next));
+          } catch { }
+          return next;
+        });
+      } else {
+        setDeletedBuiltinIds((prev) => {
+          const next = [...prev, id];
+          try {
+            localStorage.setItem("nlp-sql-deleted-builtins", JSON.stringify(next));
+          } catch { }
+          return next;
+        });
+      }
+
+      if (selectedDatasetId === id) {
+        const remaining = allDatasets.filter((d) => d.id !== id);
+        if (remaining.length > 0) {
+          changeDataset(remaining[0].id);
+        }
+      }
+    },
+    [allDatasets, customDatasets, selectedDatasetId, changeDataset],
+  );
 
   const handleOpenCreateModal = useCallback(() => {
     setDatasetToEdit(null);
@@ -308,7 +442,10 @@ export default function Home() {
       const mimeType =
         typeof params === "object" ? params.mimeType : undefined;
 
-      if (!questionToTranslate && !audioBase64) return;
+      if (!questionToTranslate && !audioBase64) {
+        setError("Please enter a query.");
+        return;
+      }
       if (questionToTranslate) {
         setNlInput(questionToTranslate);
       }
@@ -348,16 +485,13 @@ export default function Home() {
         };
         setNlInfo(llmResult);
         setSql(llmResult.sql);
-        runQuery(
-          llmResult.sql,
-          questionToTranslate || result.question || "Voice query",
-        );
+        runQuery(llmResult.sql, questionToTranslate);
         if (voiceFeedback && llmResult.interpretation) {
           speakText(llmResult.interpretation);
         }
-      } catch (error) {
+      } catch {
         setError(
-          error instanceof Error ? error.message : "LLM translation failed.",
+          "Unable to generate a valid SQL query from this request. Try being more specific.",
         );
       } finally {
         setIsTranslating(false);
@@ -397,30 +531,41 @@ export default function Home() {
   }, [finalRows, columns]);
 
   const exportReport = useCallback(() => {
-    const markdown = [
-      "# NL→SQL Execution Report",
-      `Generated: ${new Date().toISOString()}`,
-      "",
-      "## Query",
-      "```sql\n" + sql + "\n```",
-      error ? `\n**Error:** ${error}` : "",
-      "",
-      "## Pipeline Steps",
-      ...steps.map(
-        (step, index) =>
-          `${index + 1}. **${step.stage}** — ${step.title}: ${step.detail} (${step.rowCount} rows)`,
-      ),
-      "",
-      "## Final Result",
-      "| " + columns.join(" | ") + " |",
-      "|" + columns.map(() => "---").join("|") + "|",
-      ...finalRows.map(
-        (row) =>
-          "| " + columns.map((column) => row[column] ?? "").join(" | ") + " |",
-      ),
-    ].join("\n");
-    download(new Blob([markdown], { type: "text/markdown" }), "report.md");
-  }, [sql, steps, finalRows, columns, error]);
+    if (!hasExecuted || !lastExecutionData) {
+      alert("Execute a query first to generate an execution report.");
+      return;
+    }
+    const markdown = generateMarkdownReport(lastExecutionData);
+    triggerFileDownload(
+      new Blob([markdown], { type: "text/markdown;charset=utf-8" }),
+      "nl-to-sql-execution-report.md",
+    );
+  }, [hasExecuted, lastExecutionData]);
+
+  const handleDownloadReport = useCallback(
+    async (format: "pdf" | "docx" | "txt") => {
+      if (!hasExecuted || !lastExecutionData) {
+        alert("Execute a query first to generate an execution report.");
+        return;
+      }
+      try {
+        if (format === "pdf") {
+          await downloadPdfReport(lastExecutionData);
+        } else if (format === "docx") {
+          await downloadDocxReport(lastExecutionData);
+        } else if (format === "txt") {
+          const text = generateTextReport(lastExecutionData);
+          triggerFileDownload(
+            new Blob([text], { type: "text/plain;charset=utf-8" }),
+            "nl-to-sql-execution-report.txt",
+          );
+        }
+      } catch (err) {
+        console.error("Report download error:", err);
+      }
+    },
+    [hasExecuted, lastExecutionData],
+  );
 
   const mermaidSource = useMemo(
     () => erDiagramMermaid(activeSchema),
@@ -489,7 +634,7 @@ export default function Home() {
 
       {/* Main Workspace (Kept mounted to preserve database, queries, and layout state) */}
       <main
-        className={`flex-1 flex flex-col lg:flex-row gap-0 p-4 relative overflow-hidden ${
+        className={`flex-1 flex flex-col lg:flex-row items-start gap-0 p-4 relative ${
           activeSection === "workspace" ? "flex" : "hidden"
         }`}
       >
@@ -503,10 +648,13 @@ export default function Home() {
           <div className="pr-2 h-full flex flex-col">
             <InputPanel
               datasets={allDatasets}
-              selectedDatasetId={selectedDataset.id}
+              selectedDatasetId={selectedDatasetId}
+              activeSchema={activeSchema}
               onDatasetChange={changeDataset}
               onOpenCreateModal={handleOpenCreateModal}
               onEditDataset={handleOpenEditModal}
+              onDeleteDataset={handleDeleteDataset}
+              onOpenGuide={() => setIsGuideModalOpen(true)}
               examples={selectedDataset.examples}
               nlInput={nlInput}
               onNlInputChange={setNlInput}
@@ -525,6 +673,7 @@ export default function Home() {
               voiceFeedback={voiceFeedback}
               onToggleVoiceFeedback={setVoiceFeedback}
               theme={theme}
+              maxPanelHeight={centerHeight}
             />
           </div>
         </div>
@@ -532,7 +681,7 @@ export default function Home() {
         {/* Resizer Slider Handle 1: Between Left and Center */}
         <div
           onMouseDown={() => setIsResizingLeft(true)}
-          className="hidden lg:flex w-3 hover:w-4 items-center justify-center cursor-col-resize group relative z-10 shrink-0 transition-all"
+          className="hidden lg:flex w-3 hover:w-4 items-center justify-center cursor-col-resize group relative z-10 shrink-0 transition-all self-stretch"
           title="Drag to resize panel or click arrow to collapse"
         >
           <div className="w-1 h-12 rounded-full bg-zinc-600/30 group-hover:bg-[var(--accent)] transition-colors flex items-center justify-center">
@@ -552,6 +701,7 @@ export default function Home() {
 
         {/* Center: Canvas / Visualization */}
         <div
+          ref={centerPanelRef}
           className={`flex-1 flex flex-col gap-3 min-w-0 px-1 ${mobileTab !== "canvas" ? "hidden lg:flex" : "flex"
             }`}
         >
@@ -573,13 +723,15 @@ export default function Home() {
             schema={activeSchema}
             dark={isDark}
             theme={theme}
+            explanation={explanation}
+            hasExecuted={hasExecuted}
           />
         </div>
 
         {/* Resizer Slider Handle 2: Between Center and Right */}
         <div
           onMouseDown={() => setIsResizingRight(true)}
-          className="hidden lg:flex w-3 hover:w-4 items-center justify-center cursor-col-resize group relative z-10 shrink-0 transition-all"
+          className="hidden lg:flex w-3 hover:w-4 items-center justify-center cursor-col-resize group relative z-10 shrink-0 transition-all self-stretch"
           title="Drag to resize panel or click arrow to collapse"
         >
           <div className="w-1 h-12 rounded-full bg-zinc-600/30 group-hover:bg-[var(--accent)] transition-colors flex items-center justify-center">
@@ -609,6 +761,8 @@ export default function Home() {
               error={error}
               dataset={selectedDataset}
               activeSchema={activeSchema}
+              onDownloadReport={handleDownloadReport}
+              maxPanelHeight={centerHeight}
             />
           </div>
         </div>
@@ -690,6 +844,7 @@ export default function Home() {
         isOpen={isDatasetModalOpen}
         onClose={() => setIsDatasetModalOpen(false)}
         onCreateDataset={handleSaveDataset}
+        onDeleteDataset={handleDeleteDataset}
         datasetToEdit={datasetToEdit}
         dark={isDark}
       />

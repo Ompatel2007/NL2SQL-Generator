@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { InputPanelProps } from "./nlSqlTypes";
 import { DatasetDropdown } from "./DatasetDropdown";
 import { VoiceButton } from "./VoiceButton";
@@ -9,10 +9,13 @@ import {
   speakText,
   type VoiceAudioResult,
 } from "@/lib/useSpeechRecognition";
+import { validateSQL, type SQLValidationResult } from "@/lib/sqlValidator";
 
 export function InputPanel({
   datasets,
   selectedDatasetId,
+  activeSchema = [],
+  maxPanelHeight,
   onDatasetChange,
   examples,
   nlInput,
@@ -33,9 +36,27 @@ export function InputPanel({
   onToggleVoiceFeedback,
   onOpenCreateModal,
   onEditDataset,
+  onDeleteDataset,
   onOpenGuide,
 }: InputPanelProps) {
   const [autoExecute, setAutoExecute] = useState(true);
+
+  // Real-time debounced SQL validation while typing
+  const [validation, setValidation] = useState<SQLValidationResult>({
+    status: "empty",
+    message: "",
+  });
+
+  useEffect(() => {
+    if (!sql.trim()) {
+      setValidation({ status: "empty", message: "" });
+      return;
+    }
+    const timer = setTimeout(() => {
+      setValidation(validateSQL(sql, activeSchema || []));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [sql, activeSchema]);
 
   // Handle completion of audio recording / speech
   const handleAudioReady = useCallback(
@@ -113,11 +134,13 @@ export function InputPanel({
 
   return (
     <section
-      className="panel p-4 flex flex-col gap-4 max-h-[calc(100vh-5rem)] relative overflow-hidden"
+      className="panel p-4 flex flex-col gap-4 relative overflow-hidden"
       style={{
         background: "var(--panel)",
         borderColor: "var(--border)",
         color: "var(--foreground)",
+        height: maxPanelHeight ? `${maxPanelHeight}px` : undefined,
+        maxHeight: maxPanelHeight ? `${maxPanelHeight}px` : "calc(100vh - 5rem)",
       }}
       aria-label="Input panel"
     >
@@ -251,6 +274,23 @@ export function InputPanel({
                       <span>Reset Database</span>
                     </button>
                   )}
+                  {onDeleteDataset && activeDataset && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        if (window.confirm(`Are you sure you want to delete dataset "${activeDataset.name}"?`)) {
+                          onDeleteDataset(activeDataset.id);
+                        }
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 hover:bg-[var(--surface-hover)] text-rose-400 cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Delete Dataset</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -261,6 +301,7 @@ export function InputPanel({
             onChange={onDatasetChange}
             onOpenCreateModal={onOpenCreateModal}
             onEditDataset={onEditDataset}
+            onDeleteDataset={onDeleteDataset}
           />
         </div>
 
@@ -441,6 +482,37 @@ export function InputPanel({
             }}
             aria-label="SQL query"
           />
+
+          {/* Real-time Typing Debug Indicator */}
+          {validation.status !== "empty" && (
+            <div className="mt-1.5 flex items-center justify-between text-xs font-mono">
+              {validation.status === "valid" && (
+                <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>✓ Valid SQL</span>
+                </span>
+              )}
+              {validation.status === "incomplete" && (
+                <span className="text-amber-400 font-medium flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span>⚠ Incomplete SQL: {validation.message}</span>
+                </span>
+              )}
+              {validation.status === "invalid" && (
+                <span className="text-rose-400 font-medium flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span>✕ Possible error: {validation.message}</span>
+                </span>
+              )}
+            </div>
+          )}
+
           <button
             onClick={onRunQuery}
             className="mt-2 w-full py-2 rounded-lg text-sm font-semibold border transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:opacity-90"
@@ -494,12 +566,71 @@ export function InputPanel({
 
         {/* Pic 6: History (High contrast visibility & skip empty boxes) */}
         <div>
-          <h2
-            className="font-bold mb-2 text-sm"
-            style={{ color: "var(--foreground)" }}
-          >
-            History
-          </h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2
+              className="font-bold text-sm"
+              style={{ color: "var(--foreground)" }}
+            >
+              History
+            </h2>
+            <button
+              type="button"
+              onClick={() => {
+                const validItems = history.filter(
+                  (item) => item && (item.question?.trim() || item.sql?.trim()),
+                );
+                if (validItems.length === 0) return;
+                const last5 = validItems.slice(0, 5);
+                let md = `# Query History (Last ${last5.length} Queries)\n\n`;
+                md += `**Exported:** ${new Date().toLocaleString()}\n`;
+                md += `**Dataset:** ${activeDataset?.name || "Active Dataset"}\n\n`;
+                md += `---\n\n`;
+
+                last5.forEach((item, index) => {
+                  md += `### Query ${index + 1}\n`;
+                  md += `- **Timestamp:** ${item.time || "N/A"}\n`;
+                  if (item.question && item.question !== item.sql) {
+                    md += `- **Natural Language Input:** ${item.question}\n`;
+                  }
+                  md += `- **Generated / Executed SQL:**\n\`\`\`sql\n${item.sql}\n\`\`\`\n`;
+                  md += `- **Statement Type:** ${item.statementType || "DQL"}\n`;
+                  if (item.command) md += `- **Command:** ${item.command}\n`;
+                  md += `- **Dataset:** ${activeDataset?.name || "Active"}\n`;
+                  md += `- **Execution Status:** Success\n`;
+                  md += `- **Result Row Count:** ${item.rows != null ? item.rows : 0} rows\n\n`;
+                  md += `---\n\n`;
+                });
+
+                const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `query-history-last-${last5.length}.md`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }}
+              disabled={history.filter((item) => item && (item.question?.trim() || item.sql?.trim())).length === 0}
+              title={
+                history.filter((item) => item && (item.question?.trim() || item.sql?.trim())).length === 0
+                  ? "No query history available to download"
+                  : "Download last 5 query history entries"
+              }
+              className="p-1 px-1.5 rounded-md border text-xs flex items-center gap-1 transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90 cursor-pointer"
+              style={{
+                background: "var(--surface-subtle)",
+                borderColor: "var(--border)",
+                color: "var(--foreground)",
+              }}
+              aria-label="Download Query History"
+            >
+              <svg className="w-3.5 h-3.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              {/* <span className="text-xs font-mono font-bold">↓</span> */}
+            </button>
+          </div>
           {history.filter((item) => item && (item.question?.trim() || item.sql?.trim())).length === 0 ? (
             <p className="text-xs opacity-60" style={{ color: "var(--muted)" }}>
               No query history recorded yet.

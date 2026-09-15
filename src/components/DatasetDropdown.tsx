@@ -7,6 +7,7 @@ interface DatasetDropdownProps {
   onChange: (id: string) => void;
   onOpenCreateModal?: () => void;
   onEditDataset?: (dataset: Dataset) => void;
+  onDeleteDataset?: (id: string) => void;
 }
 
 export function DatasetDropdown({
@@ -15,6 +16,7 @@ export function DatasetDropdown({
   onChange,
   onOpenCreateModal,
   onEditDataset,
+  onDeleteDataset,
 }: DatasetDropdownProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -111,7 +113,7 @@ export function DatasetDropdown({
             return (
               <div
                 key={dataset.id}
-                className={`dataset-option w-full rounded-lg px-3 py-2 text-left flex items-center justify-between ${
+                className={`dataset-option w-full rounded-lg px-3 py-2 text-left flex items-center justify-between gap-2 ${
                   selected ? "dataset-option-selected" : ""
                 }`}
               >
@@ -119,19 +121,19 @@ export function DatasetDropdown({
                   type="button"
                   role="option"
                   aria-selected={selected}
-                  className="flex-1 text-left cursor-pointer"
+                  className="flex-1 min-w-0 text-left cursor-pointer pr-1"
                   onClick={() => selectDataset(dataset.id)}
                 >
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span
-                      className="block text-sm font-semibold"
+                      className="block text-sm font-semibold truncate"
                       style={{ color: "var(--foreground)" }}
                     >
                       {dataset.name}
                     </span>
                     {dataset.isCustom && (
                       <span
-                        className="text-[11px] px-1.5 py-0.5 rounded font-bold uppercase border"
+                        className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase border shrink-0"
                         style={{
                           background: "var(--surface-hover)",
                           borderColor: "var(--border)",
@@ -143,39 +145,69 @@ export function DatasetDropdown({
                     )}
                   </div>
                   <span
-                    className="mt-0.5 block text-xs opacity-70 line-clamp-1"
+                    className="mt-0.5 block text-xs opacity-70 truncate"
                     style={{ color: "var(--muted)" }}
                   >
                     {dataset.description}
                   </span>
                 </button>
-                {onEditDataset && (
-                  <button
-                    type="button"
-                    title={`Edit ${dataset.name}`}
-                    className="p-1 px-2 text-xs rounded border border-zinc-500/30 hover:bg-zinc-500/10 text-zinc-300 ml-2 cursor-pointer shrink-0 flex items-center gap-1 font-medium transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpen(false);
-                      onEditDataset(dataset);
-                    }}
-                  >
-                    <svg
-                      className="w-3.5 h-3.5 opacity-80"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {onEditDataset && (
+                    <button
+                      type="button"
+                      title={`Edit ${dataset.name}`}
+                      aria-label={`Edit ${dataset.name}`}
+                      className="p-1.5 text-xs rounded-md border border-zinc-500/30 hover:bg-zinc-500/15 hover:border-zinc-400/50 text-zinc-300 hover:text-zinc-100 cursor-pointer flex items-center justify-center transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpen(false);
+                        onEditDataset(dataset);
+                      }}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
-                    <span>Edit</span>
-                  </button>
-                )}
+                      <svg
+                        className="w-3.5 h-3.5 opacity-80"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                  {onDeleteDataset && (
+                    <button
+                      type="button"
+                      title={`Delete ${dataset.name}`}
+                      aria-label={`Delete ${dataset.name}`}
+                      className="p-1.5 text-xs rounded-md border border-rose-500/30 hover:bg-rose-500/15 hover:border-rose-500/60 text-rose-400 hover:text-rose-300 cursor-pointer flex items-center justify-center transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Are you sure you want to delete dataset "${dataset.name}"?`)) {
+                          onDeleteDataset(dataset.id);
+                        }
+                      }}
+                    >
+                      <svg
+                        className="w-3.5 h-3.5 opacity-80"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}

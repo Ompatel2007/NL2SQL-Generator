@@ -415,34 +415,34 @@ WHERE city = 'Mumbai';`}
         >
           <h2 className="text-base md:text-lg font-bold flex items-center gap-2" style={{ color: "var(--foreground)" }}>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-[var(--surface-subtle)] text-[var(--accent)] border border-[var(--border)]">11</span>
-            Relational Algebra &amp; Logical Query Plans
+            Relational Operators &amp; Logical Query Plans
           </h2>
           <p className="text-xs md:text-sm opacity-90 leading-relaxed">
             The AST is transformed into a Logical Query Plan, which is an operator tree of Relational Algebra primitives. Each node in the tree accepts one or more relations as input and produces a relation as output:
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
             <div className="p-3 rounded-lg border bg-[var(--surface-subtle)]" style={{ borderColor: "var(--border)" }}>
-              <div className="font-mono font-bold text-xs text-[var(--accent)]">σ (Selection)</div>
-              <p className="text-xs opacity-80 mt-1">Filters rows matching a boolean predicate: <code className="font-mono">σ_city=&apos;Mumbai&apos;(customers)</code></p>
+              <div className="font-mono font-bold text-xs text-[var(--accent)]">Selection (WHERE / Filter)</div>
+              <p className="text-xs opacity-80 mt-1">Filters rows matching a boolean predicate: <code className="font-mono">Filter[city=&apos;Mumbai&apos;](customers)</code></p>
             </div>
             <div className="p-3 rounded-lg border bg-[var(--surface-subtle)]" style={{ borderColor: "var(--border)" }}>
-              <div className="font-mono font-bold text-xs text-[var(--accent)]">π (Projection)</div>
-              <p className="text-xs opacity-80 mt-1">Extracts specified columns: <code className="font-mono">π_name,city(R)</code></p>
+              <div className="font-mono font-bold text-xs text-[var(--accent)]">Projection (SELECT)</div>
+              <p className="text-xs opacity-80 mt-1">Extracts specified columns: <code className="font-mono">Project[name, city](customers)</code></p>
             </div>
             <div className="p-3 rounded-lg border bg-[var(--surface-subtle)]" style={{ borderColor: "var(--border)" }}>
-              <div className="font-mono font-bold text-xs text-[var(--accent)]">⋈ (Theta / Natural Join)</div>
-              <p className="text-xs opacity-80 mt-1">Combines matching tuples: <code className="font-mono">Orders ⋈_cust_id=id Customers</code></p>
+              <div className="font-mono font-bold text-xs text-[var(--accent)]">Join (JOIN / Condition)</div>
+              <p className="text-xs opacity-80 mt-1">Combines matching tuples: <code className="font-mono">Orders JOIN[cust_id=id] Customers</code></p>
             </div>
             <div className="p-3 rounded-lg border bg-[var(--surface-subtle)]" style={{ borderColor: "var(--border)" }}>
-              <div className="font-mono font-bold text-xs text-[var(--accent)]">γ (Aggregation)</div>
-              <p className="text-xs opacity-80 mt-1">Partitions data into buckets and calculates summaries: <code className="font-mono">γ_dept, COUNT(id)(Employees)</code></p>
+              <div className="font-mono font-bold text-xs text-[var(--accent)]">Aggregation (GROUP BY)</div>
+              <p className="text-xs opacity-80 mt-1">Partitions data into buckets and calculates summaries: <code className="font-mono">GroupBy[dept, COUNT(id)](Employees)</code></p>
             </div>
             <div className="p-3 rounded-lg border bg-[var(--surface-subtle)]" style={{ borderColor: "var(--border)" }}>
-              <div className="font-mono font-bold text-xs text-[var(--accent)]">× (Cartesian Product)</div>
-              <p className="text-xs opacity-80 mt-1">Computes every combination of tuples: <code className="font-mono">R × S</code></p>
+              <div className="font-mono font-bold text-xs text-[var(--accent)]">Cartesian Product (CROSS JOIN)</div>
+              <p className="text-xs opacity-80 mt-1">Computes every combination of tuples: <code className="font-mono">R CROSS JOIN S</code></p>
             </div>
             <div className="p-3 rounded-lg border bg-[var(--surface-subtle)]" style={{ borderColor: "var(--border)" }}>
-              <div className="font-mono font-bold text-xs text-[var(--accent)]">∪ / − / ∩ (Set Operations)</div>
+              <div className="font-mono font-bold text-xs text-[var(--accent)]">Set Operations (UNION / EXCEPT)</div>
               <p className="text-xs opacity-80 mt-1">Union, Difference, and Intersection operations on union-compatible relations.</p>
             </div>
           </div>

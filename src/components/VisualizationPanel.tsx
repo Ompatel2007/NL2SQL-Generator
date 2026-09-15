@@ -2,8 +2,10 @@ import { useEffect, useRef } from "react";
 import type { Table } from "@/lib/schema";
 import type { PipelineStep, Row } from "@/lib/sqlEngine";
 import type { Tab, ThemeId } from "./nlSqlTypes";
+import type { QueryExplanation } from "@/lib/queryExplainer";
 import { Theory } from "./Theory";
 import { ChenERDiagram } from "./ChenERDiagram";
+import { QueryExplanationView } from "./QueryExplanationView";
 
 function getStageBadgeClass(stage: string, theme: ThemeId = "eclipse"): string {
   if (theme === "volt") {
@@ -101,6 +103,8 @@ interface VisualizationPanelProps {
   schema: Table[];
   dark: boolean;
   theme?: ThemeId;
+  explanation?: QueryExplanation | null;
+  hasExecuted?: boolean;
 }
 
 export function VisualizationPanel({
@@ -121,14 +125,16 @@ export function VisualizationPanel({
   schema,
   dark,
   theme = "eclipse",
+  explanation,
+  hasExecuted = false,
 }: VisualizationPanelProps) {
   return (
     <section
       className="flex flex-col gap-4 min-w-0"
       aria-label="Visualization panel"
     >
-      <div className="flex gap-2">
-        {(["result", "schema", "theory"] as const).map((item) => {
+      <div className="flex gap-2 flex-wrap">
+        {(["result", "schema", "explanation", "theory"] as const).map((item) => {
           const isActive = tab === item;
           return (
             <button
@@ -153,7 +159,9 @@ export function VisualizationPanel({
                 ? "Pipeline & Result"
                 : item === "schema"
                   ? "Schema / ER"
-                  : "Theory"}
+                  : item === "explanation"
+                    ? "Explanation"
+                    : "Theory"}
             </button>
           );
         })}
@@ -173,10 +181,17 @@ export function VisualizationPanel({
           onExportReport={onExportReport}
           sql={sql}
           theme={theme}
+          hasExecuted={hasExecuted}
         />
       )}
       {tab === "schema" && (
         <SchemaView schema={schema} source={mermaidSource} dark={dark} />
+      )}
+      {tab === "explanation" && (
+        <QueryExplanationView
+          explanation={explanation ?? null}
+          hasExecuted={hasExecuted}
+        />
       )}
       {tab === "theory" && <Theory />}
     </section>
@@ -196,6 +211,7 @@ function ResultView({
   onExportReport,
   sql,
   theme = "eclipse",
+  hasExecuted,
 }: Omit<
   VisualizationPanelProps,
   "tab" | "onTabChange" | "mermaidSource" | "schema" | "dark"
@@ -295,7 +311,7 @@ function ResultView({
         </div>
       )}
 
-      {finalRows.length > 0 && (
+      {hasExecuted && (
         <div
           className="panel p-4"
           style={{
@@ -340,7 +356,20 @@ function ResultView({
               </button>
             </div>
           </div>
-          <ResultTable rows={finalRows} cols={columns} />
+          {finalRows.length > 0 ? (
+            <ResultTable rows={finalRows} cols={columns} />
+          ) : (
+            <div
+              className="p-3.5 rounded-lg border text-xs"
+              style={{
+                background: "var(--surface-subtle)",
+                borderColor: "var(--border)",
+                color: "var(--muted)",
+              }}
+            >
+              Query executed successfully, but no rows matched the condition.
+            </div>
+          )}
         </div>
       )}
     </>

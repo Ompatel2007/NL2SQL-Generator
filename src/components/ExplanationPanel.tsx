@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { QueryResult } from "@/lib/sqlEngine";
 import type { Table, Dataset } from "@/lib/schema";
 import { generateDatasetSQL, generateTableCSV } from "@/lib/exportUtils";
@@ -13,6 +14,8 @@ interface ExplanationPanelProps {
   lastResult?: QueryResult | null;
   dataset?: Dataset;
   activeSchema?: Table[];
+  onDownloadReport?: (format: "pdf" | "docx" | "txt") => void;
+  maxPanelHeight?: number;
 }
 
 const NOTES: Record<string, string> = {
@@ -54,21 +57,15 @@ export function ExplanationPanel({
   lastResult,
   dataset,
   activeSchema = [],
+  onDownloadReport,
+  maxPanelHeight,
 }: ExplanationPanelProps) {
-  const downloadFile = (content: string, filename: string, mimeType: string) => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
+  const [isReportCollapsed, setIsReportCollapsed] = useState(false);
 
   const handleExportSQL = () => {
-    const dsName = dataset?.name || "dataset";
-    const sqlContent = generateDatasetSQL(dsName, activeSchema);
-    const filename = `${dsName.toLowerCase().replace(/[^\w]/g, "_")}_schema.sql`;
+    if (!dataset) return;
+    const sqlContent = generateDatasetSQL(dataset.name, activeSchema);
+    const filename = `${dataset.name.toLowerCase().replace(/[^\w]/g, "_")}_schema.sql`;
     downloadFile(sqlContent, filename, "application/sql");
   };
 
@@ -84,20 +81,32 @@ export function ExplanationPanel({
     });
   };
 
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <aside
-      className="panel p-4 overflow-y-auto max-h-[calc(100vh-5rem)] flex flex-col gap-5"
+      className="panel p-4 overflow-y-auto flex flex-col gap-5"
       style={{
         background: "var(--panel)",
         borderColor: "var(--border)",
         color: "var(--foreground)",
+        height: maxPanelHeight ? `${maxPanelHeight}px` : undefined,
+        maxHeight: maxPanelHeight ? `${maxPanelHeight}px` : "calc(100vh - 5rem)",
       }}
       aria-label="Explanation panel"
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b" style={{ borderColor: "var(--border)" }}>
           <h2 className="font-bold text-sm md:text-base tracking-tight" style={{ color: "var(--foreground)" }}>
-            Execution Theory &amp; Algebra
+            Execution Theory &amp; Insights
           </h2>
           <div className="flex items-center gap-2">
             {lastResult && (
@@ -114,11 +123,10 @@ export function ExplanationPanel({
             )}
           </div>
         </div>
-
         {!current && !error && (
           <div className="space-y-3.5 text-xs opacity-90">
             <p className="leading-relaxed" style={{ color: "var(--foreground)" }}>
-              Run any SQL statement to inspect its step-by-step pipeline execution, relational algebra notation, and complexity metrics.
+              Run any SQL statement to inspect its step-by-step pipeline execution, operation details, and complexity metrics.
             </p>
             <div
               className="p-3.5 rounded-xl border space-y-2 text-xs"
@@ -328,6 +336,93 @@ export function ExplanationPanel({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t my-2" style={{ borderColor: "var(--border)" }} />
+
+          {/* Collapsible DOWNLOAD REPORT Section */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setIsReportCollapsed((prev) => !prev)}
+              className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer hover:opacity-90 py-1"
+              style={{ color: "var(--foreground)" }}
+              aria-expanded={!isReportCollapsed}
+            >
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-purple-400 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Download Report</span>
+              </span>
+              <svg
+                className={`w-3.5 h-3.5 opacity-70 transition-transform duration-200 ${isReportCollapsed ? "" : "rotate-180"}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {!isReportCollapsed && (
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                {/* PDF Report */}
+                <button
+                  type="button"
+                  onClick={() => onDownloadReport?.("pdf")}
+                  title="Download PDF Execution Report"
+                  className="p-2 rounded-lg border text-center font-semibold text-xs transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs flex flex-col items-center justify-center gap-1"
+                  style={{
+                    background: "var(--panel)",
+                    borderColor: "var(--border)",
+                    color: "var(--foreground)",
+                  }}
+                >
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 font-bold">
+                    PDF
+                  </span>
+                  <span className="text-[11px] opacity-90">.pdf</span>
+                </button>
+
+                {/* DOCX Report */}
+                <button
+                  type="button"
+                  onClick={() => onDownloadReport?.("docx")}
+                  title="Download Word (DOCX) Execution Report"
+                  className="p-2 rounded-lg border text-center font-semibold text-xs transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs flex flex-col items-center justify-center gap-1"
+                  style={{
+                    background: "var(--panel)",
+                    borderColor: "var(--border)",
+                    color: "var(--foreground)",
+                  }}
+                >
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 font-bold">
+                    DOCX
+                  </span>
+                  <span className="text-[11px] opacity-90">.docx</span>
+                </button>
+
+                {/* TXT Report */}
+                <button
+                  type="button"
+                  onClick={() => onDownloadReport?.("txt")}
+                  title="Download Plain Text Execution Report"
+                  className="p-2 rounded-lg border text-center font-semibold text-xs transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs flex flex-col items-center justify-center gap-1"
+                  style={{
+                    background: "var(--panel)",
+                    borderColor: "var(--border)",
+                    color: "var(--foreground)",
+                  }}
+                >
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
+                    TXT
+                  </span>
+                  <span className="text-[11px] opacity-90">.txt</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
