@@ -78,7 +78,7 @@ export function DatasetDropdown({
           <span style={{ color: "var(--foreground)" }}>{selectedDataset?.name}</span>
           {selectedDataset?.isCustom && (
             <span
-              className="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase border"
+              className="text-xs px-2 py-0.5 rounded font-semibold uppercase border"
               style={{
                 background: "var(--surface-hover)",
                 borderColor: "var(--border)",
@@ -131,7 +131,7 @@ export function DatasetDropdown({
                     </span>
                     {dataset.isCustom && (
                       <span
-                        className="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase border"
+                        className="text-[11px] px-1.5 py-0.5 rounded font-bold uppercase border"
                         style={{
                           background: "var(--surface-hover)",
                           borderColor: "var(--border)",

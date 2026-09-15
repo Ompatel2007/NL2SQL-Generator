@@ -3,12 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import { THEME_CONFIGS, type ThemeId } from "./nlSqlTypes";
 
+export type NavSection = "workspace" | "learn" | "help" | "developedBy";
+
+const NAV_ITEMS: { id: NavSection; label: string }[] = [
+  { id: "workspace", label: "Workspace" },
+  { id: "learn", label: "Learn" },
+  { id: "help", label: "Help" },
+  { id: "developedBy", label: "Developed By" },
+];
+
 interface AppHeaderProps {
   theme: ThemeId;
   onThemeChange: (theme: ThemeId) => void;
+  activeSection?: NavSection;
+  onSectionChange?: (section: NavSection) => void;
 }
 
-export function AppHeader({ theme, onThemeChange }: AppHeaderProps) {
+export function AppHeader({
+  theme,
+  onThemeChange,
+  activeSection = "workspace",
+  onSectionChange,
+}: AppHeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -50,35 +66,79 @@ export function AppHeader({ theme, onThemeChange }: AppHeaderProps) {
 
   return (
     <header
-      className="flex items-center justify-between px-5 py-3 border-b transition-colors relative z-40"
+      className="flex items-center justify-between px-4 sm:px-5 py-2.5 sm:py-3 border-b transition-colors relative z-40 gap-3"
       style={{
         background: "var(--panel)",
         borderColor: "var(--border)",
       }}
     >
-      {/* Brand logo & title */}
-      <div className="flex items-center gap-2.5">
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center font-mono font-black text-xs shadow-xs"
-          style={{
-            background: "var(--accent)",
-            color: "var(--accent-foreground)",
-          }}
+      {/* Brand logo & title + Navigation */}
+      <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+        <button
+          type="button"
+          onClick={() => onSectionChange?.("workspace")}
+          className="flex items-center gap-2.5 shrink-0 cursor-pointer text-left bg-transparent border-none p-0 focus:outline-none"
+          title="Return to Workspace"
         >
-          SQL
-        </div>
-        <div className="flex items-baseline gap-2">
-          <h1
-            className="text-base font-bold tracking-tight"
-            style={{ color: "var(--foreground)" }}
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center font-mono font-black text-xs shadow-xs"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground)",
+            }}
           >
-            NL→SQL Visualizer
-          </h1>
-        </div>
+            SQL
+          </div>
+          <div className="flex items-baseline gap-2">
+            <h1
+              className="text-base font-bold tracking-tight whitespace-nowrap"
+              style={{ color: "var(--foreground)" }}
+            >
+              NL→SQL Visualizer
+            </h1>
+          </div>
+        </button>
+
+        {/* Major Top Navigation */}
+        <nav
+          className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none py-0.5"
+          aria-label="Main navigation"
+        >
+          {NAV_ITEMS.map((item) => {
+            const isActive = activeSection === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSectionChange?.(item.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs md:text-sm transition-all cursor-pointer border whitespace-nowrap font-medium ${
+                  isActive
+                    ? "font-semibold shadow-xs"
+                    : "opacity-80 hover:opacity-100 hover:bg-[var(--surface-hover)]"
+                }`}
+                style={
+                  isActive
+                    ? {
+                        background: "var(--surface-subtle)",
+                        borderColor: "var(--accent)",
+                        color: "var(--foreground)",
+                      }
+                    : {
+                        background: "transparent",
+                        borderColor: "transparent",
+                        color: "var(--muted)",
+                      }
+                }
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
       {/* Collapsible Theme Button & Dropdown */}
-      <div className="relative" ref={dropdownRef}>
+      <div className="relative shrink-0" ref={dropdownRef}>
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
@@ -160,13 +220,13 @@ export function AppHeader({ theme, onThemeChange }: AppHeaderProps) {
               style={{ borderColor: "var(--border)" }}
             >
               <span
-                className="text-[10px] font-bold uppercase tracking-wider opacity-60"
+                className="text-xs font-bold uppercase tracking-wider opacity-70"
                 style={{ color: "var(--muted)" }}
               >
                 Select Theme
               </span>
               <span
-                className="text-[10px] opacity-60"
+                className="text-xs opacity-70"
                 style={{ color: "var(--muted)" }}
               >
                 {THEME_CONFIGS.length} themes available
@@ -228,7 +288,7 @@ export function AppHeader({ theme, onThemeChange }: AppHeaderProps) {
                           </span>
                           {t.id === "eclipse" && (
                             <span
-                              className="text-[9px] px-1.5 py-0.2 rounded-full font-mono border"
+                              className="text-[10px] px-1.5 py-0.5 rounded-full font-mono border font-semibold"
                               style={{
                                 background: "var(--surface-hover)",
                                 color: "var(--accent)",
@@ -240,7 +300,7 @@ export function AppHeader({ theme, onThemeChange }: AppHeaderProps) {
                           )}
                         </div>
                         <p
-                          className="text-[10px] truncate opacity-70"
+                          className="text-xs truncate opacity-70"
                           style={{ color: "var(--muted)" }}
                         >
                           {t.subtitle}

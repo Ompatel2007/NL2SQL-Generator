@@ -211,7 +211,7 @@ function ResultView({
         }}
       >
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold text-sm" style={{ color: "var(--foreground)" }}>
+          <h2 className="font-bold text-sm md:text-base tracking-tight" style={{ color: "var(--foreground)" }}>
             Execution Pipeline
           </h2>
           <button
@@ -386,7 +386,7 @@ function SchemaView({
                 style={{ color: "var(--foreground)", borderColor: "var(--border)" }}
               >
                 <span>{table.name}</span>
-                <span className="text-[11px] font-normal font-sans opacity-60">
+                <span className="text-xs font-medium font-sans opacity-70">
                   {table.columns.length} cols
                 </span>
               </h3>
@@ -416,7 +416,7 @@ function SchemaView({
                             </span>
                           )}
                           {column.fk && (
-                            <span className="text-sky-500 bg-sky-500/15 border border-sky-500/30 px-1.5 py-0.5 rounded text-[11px] inline-block">
+                            <span className="text-sky-500 bg-sky-500/15 border border-sky-500/30 px-1.5 py-0.5 rounded text-xs inline-block font-mono">
                               FK→{column.fk.table}.{column.fk.column}
                             </span>
                           )}

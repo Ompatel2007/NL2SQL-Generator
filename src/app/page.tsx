@@ -1,13 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppHeader } from "@/components/AppHeader";
+import { AppHeader, type NavSection } from "@/components/AppHeader";
 import { ExplanationPanel } from "@/components/ExplanationPanel";
 import { InputPanel } from "@/components/InputPanel";
 import { DatasetModal } from "@/components/DatasetModal";
 import type { HistoryItem, Tab, ThemeId } from "@/components/nlSqlTypes";
 import { VisualizationPanel } from "@/components/VisualizationPanel";
 import { GuideModal } from "@/components/GuideModal";
+import { HelpView } from "@/components/HelpView";
+import { LearnView } from "@/components/LearnView";
+import { DevelopedByView } from "@/components/DevelopedByView";
 import {
   DATASETS,
   getDefaultSchema,
@@ -23,6 +26,7 @@ const CUSTOM_DATASETS_KEY = "nlp-sql-custom-datasets";
 
 export default function Home() {
   const [theme, setTheme] = useState<ThemeId>("eclipse");
+  const [activeSection, setActiveSection] = useState<NavSection>("workspace");
   const [customDatasets, setCustomDatasets] = useState<Dataset[]>([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState("ecommerce");
   const [isDatasetModalOpen, setIsDatasetModalOpen] = useState(false);
@@ -475,15 +479,26 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col pb-16 lg:pb-0 select-none">
-      {/* Top Bar with Collapsible Theme Selector */}
-      <AppHeader theme={theme} onThemeChange={handleThemeChange} />
+      {/* Top Bar with Navigation & Theme Selector */}
+      <AppHeader
+        theme={theme}
+        onThemeChange={handleThemeChange}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+      />
 
-      <main className="flex-1 flex flex-col lg:flex-row gap-0 p-4 relative overflow-hidden">
+      {/* Main Workspace (Kept mounted to preserve database, queries, and layout state) */}
+      <main
+        className={`flex-1 flex flex-col lg:flex-row gap-0 p-4 relative overflow-hidden ${
+          activeSection === "workspace" ? "flex" : "hidden"
+        }`}
+      >
         {/* Left Sidebar: Input Panel */}
         <div
           style={{ width: leftCollapsed ? "0px" : `${leftWidth}px` }}
-          className={`flex flex-col shrink-0 transition-[width] duration-150 ease-out overflow-hidden ${mobileTab !== "input" ? "hidden lg:flex" : "flex w-full"
-            }`}
+          className={`flex flex-col shrink-0 transition-[width] duration-150 ease-out overflow-hidden ${
+            mobileTab !== "input" ? "hidden lg:flex" : "flex w-full"
+          }`}
         >
           <div className="pr-2 h-full flex flex-col">
             <InputPanel
@@ -509,7 +524,6 @@ export default function Home() {
               isTranslating={isTranslating}
               voiceFeedback={voiceFeedback}
               onToggleVoiceFeedback={setVoiceFeedback}
-              onOpenGuide={() => setIsGuideModalOpen(true)}
               theme={theme}
             />
           </div>
@@ -600,22 +614,35 @@ export default function Home() {
         </div>
       </main>
 
+      {/* Major Section Views */}
+      {activeSection === "learn" && (
+        <LearnView onBackToWorkspace={() => setActiveSection("workspace")} />
+      )}
+      {activeSection === "help" && (
+        <HelpView onBackToWorkspace={() => setActiveSection("workspace")} />
+      )}
+      {activeSection === "developedBy" && (
+        <DevelopedByView
+          onBackToWorkspace={() => setActiveSection("workspace")}
+        />
+      )}
+
       {/* Mobile-Optimized Bottom Navigation Bar */}
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 px-3 py-2 flex items-center justify-between shadow-lg"
         aria-label="Mobile bottom navigation"
       >
-        {/* Guide button at bottom-left */}
+        {/* Help button at bottom-left */}
         <button
           type="button"
-          onClick={() => setIsGuideModalOpen(true)}
+          onClick={() => setActiveSection("help")}
           className="flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-          aria-label="Open user guide"
+          aria-label="Open help and documentation"
         >
-          <svg className="w-5 h-5 text-zinc-900 dark:text-zinc-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className="text-[11px] font-medium">Guide</span>
+          <span className="text-xs font-medium">Help</span>
         </button>
 
         {/* Info & Tools button */}
@@ -635,7 +662,7 @@ export default function Home() {
             <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-[11px] font-medium">Info &amp; Tools</span>
+            <span className="text-xs font-medium">Info &amp; Tools</span>
           </button>
 
           <button
@@ -653,7 +680,7 @@ export default function Home() {
             <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            <span className="text-[11px] font-medium">Input</span>
+            <span className="text-xs font-medium">Input</span>
           </button>
         </div>
       </nav>

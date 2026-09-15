@@ -144,7 +144,7 @@ export function ProjectsPanel({
                 </span>
                 {hasUnsavedChanges && (
                   <span
-                    className="text-[10px] px-1.5 py-0.5 rounded-full font-medium border"
+                    className="text-xs px-2 py-0.5 rounded-full font-medium border"
                     style={{
                       background: "var(--surface-subtle)",
                       borderColor: "var(--border)",
@@ -208,7 +208,7 @@ export function ProjectsPanel({
 
             {/* Current Project Info Bar */}
             <div
-              className="px-2.5 py-1.5 rounded-lg border mb-2 flex items-center justify-between text-[11px]"
+              className="px-2.5 py-1.5 rounded-lg border mb-2 flex items-center justify-between text-xs"
               style={{
                 background: "var(--surface-subtle)",
                 borderColor: "var(--border)",
@@ -228,7 +228,7 @@ export function ProjectsPanel({
               {projects.length === 0 ? (
                 <div className="py-6 text-center text-xs opacity-70" style={{ color: "var(--muted)" }}>
                   <p>No saved projects yet.</p>
-                  <p className="mt-1 text-[11px] opacity-80">Click Save Project to save current workspace.</p>
+                  <p className="mt-1 text-xs opacity-80">Click Save Project to save current workspace.</p>
                 </div>
               ) : (
                 projects.map((p) => {
@@ -259,7 +259,7 @@ export function ProjectsPanel({
                           )}
                         </div>
                         <div
-                          className="flex items-center gap-2 mt-0.5 text-[10px] opacity-70"
+                          className="flex items-center gap-2 mt-0.5 text-xs opacity-70"
                           style={{ color: "var(--muted)" }}
                         >
                           <span className="capitalize">{p.datasetId}</span>

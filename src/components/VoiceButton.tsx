@@ -174,7 +174,7 @@ export function VoiceButton({
               <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
               Recording Audio
             </span>
-            <span className="text-[10px]" style={{ color: "var(--muted)" }}>
+            <span className="text-xs" style={{ color: "var(--muted)" }}>
               {autoExecute ? "Translates when stopped" : "Dictation mode"}
             </span>
           </div>
@@ -187,7 +187,7 @@ export function VoiceButton({
 
       {/* Voice Controls: Auto Execute & Text-to-Speech checkboxes */}
       <div
-        className="flex flex-wrap items-center justify-between text-[11px] px-1 gap-2"
+        className="flex flex-wrap items-center justify-between text-xs px-1 gap-2"
         style={{ color: "var(--muted)" }}
       >
         {onToggleAutoExecute && (
@@ -222,7 +222,7 @@ export function VoiceButton({
           <button
             type="button"
             onClick={onStartListening}
-            className="text-[11px] underline font-medium hover:text-red-400 cursor-pointer"
+            className="text-xs underline font-medium hover:text-red-400 cursor-pointer"
           >
             Retry
           </button>

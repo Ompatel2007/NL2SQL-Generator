@@ -96,13 +96,13 @@ export function ExplanationPanel({
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b" style={{ borderColor: "var(--border)" }}>
-          <h2 className="font-bold text-sm" style={{ color: "var(--foreground)" }}>
+          <h2 className="font-bold text-sm md:text-base tracking-tight" style={{ color: "var(--foreground)" }}>
             Execution Theory &amp; Algebra
           </h2>
           <div className="flex items-center gap-2">
             {lastResult && (
               <span
-                className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border shrink-0"
+                className="text-xs font-mono font-bold px-2 py-0.5 rounded border shrink-0"
                 style={{
                   background: "var(--surface-subtle)",
                   borderColor: "var(--border)",
@@ -121,7 +121,7 @@ export function ExplanationPanel({
               Run any SQL statement to inspect its step-by-step pipeline execution, relational algebra notation, and complexity metrics.
             </p>
             <div
-              className="p-3.5 rounded-xl border space-y-2 text-[11px]"
+              className="p-3.5 rounded-xl border space-y-2 text-xs"
               style={{
                 background: "var(--surface-subtle)",
                 borderColor: "var(--border)",
@@ -144,7 +144,7 @@ export function ExplanationPanel({
             <p className="font-mono p-3 rounded-xl border bg-red-500/10 border-red-500/30 text-red-500">
               {error}
             </p>
-            <p className="text-[11px] opacity-70" style={{ color: "var(--muted)" }}>
+            <p className="text-xs opacity-75" style={{ color: "var(--muted)" }}>
               Verify table names, column types, and SQL syntax against the active Database Schema.
             </p>
           </div>
@@ -154,7 +154,7 @@ export function ExplanationPanel({
           <div className="space-y-3.5 text-xs">
             <div>
               <span
-                className="inline-block px-2.5 py-0.5 rounded text-[10px] font-mono font-bold border"
+                className="inline-block px-2.5 py-0.5 rounded text-xs font-mono font-bold border"
                 style={{
                   background: "var(--surface-subtle)",
                   borderColor: "var(--border)",
@@ -164,7 +164,7 @@ export function ExplanationPanel({
                 {current.stage}
               </span>
               <h3
-                className="font-bold text-sm mt-2"
+                className="font-bold text-base mt-2"
                 style={{ color: "var(--foreground)" }}
               >
                 {current.title}
@@ -187,7 +187,7 @@ export function ExplanationPanel({
                   {NOTES[current.stage] ?? "Database operation executed successfully."}
                 </p>
               </div>
-              <p className="text-[11px] font-mono pt-0.5" style={{ color: "var(--foreground)" }}>
+              <p className="text-xs font-mono pt-0.5" style={{ color: "var(--foreground)" }}>
                 Working rows after this stage:{" "}
                 <strong style={{ color: "var(--accent)" }}>{current.rowCount}</strong>
               </p>
@@ -198,7 +198,7 @@ export function ExplanationPanel({
               style={{ borderColor: "var(--border)" }}
             >
               <h4
-                className="text-[10px] font-bold uppercase mb-2 tracking-wider"
+                className="text-xs font-bold uppercase mb-2 tracking-wider"
                 style={{ color: "var(--muted)" }}
               >
                 Relational Notation / Semantics
@@ -225,7 +225,7 @@ export function ExplanationPanel({
       >
         <div className="flex items-center justify-between">
           <h3
-            className="font-bold text-xs uppercase tracking-wider flex items-center gap-1.5"
+            className="font-bold text-sm uppercase tracking-wider flex items-center gap-1.5"
             style={{ color: "var(--foreground)" }}
           >
             <svg
@@ -245,7 +245,7 @@ export function ExplanationPanel({
           </h3>
           {dataset && (
             <span
-              className="text-[10px] font-mono px-2 py-0.5 rounded border opacity-80"
+              className="text-xs font-mono px-2 py-0.5 rounded border opacity-90"
               style={{
                 background: "var(--surface-subtle)",
                 borderColor: "var(--border)",
@@ -264,7 +264,7 @@ export function ExplanationPanel({
             borderColor: "var(--border)",
           }}
         >
-          <p className="text-[11px] opacity-80" style={{ color: "var(--foreground)" }}>
+          <p className="text-xs opacity-90" style={{ color: "var(--foreground)" }}>
             Download active dataset in CSV and SQL script formats:
           </p>
 
@@ -285,18 +285,18 @@ export function ExplanationPanel({
               </svg>
               <span>Export SQL Script (.sql)</span>
             </span>
-            <span className="text-[10px] opacity-60 font-mono">DDL &amp; DML</span>
+            <span className="text-xs opacity-70 font-mono">DDL &amp; DML</span>
           </button>
 
           {/* CSV Tables Export Section */}
           <div className="space-y-2 pt-1">
-            <div className="flex items-center justify-between text-[11px] font-semibold opacity-80">
+            <div className="flex items-center justify-between text-xs font-semibold opacity-90">
               <span>CSV Tables (.csv)</span>
               {activeSchema.length > 1 && (
                 <button
                   type="button"
                   onClick={handleExportAllCSV}
-                  className="text-[10px] text-emerald-500 hover:underline cursor-pointer font-bold"
+                  className="text-xs text-emerald-500 hover:underline cursor-pointer font-bold"
                 >
                   Export All ({activeSchema.length})
                 </button>
@@ -316,13 +316,13 @@ export function ExplanationPanel({
                     color: "var(--foreground)",
                   }}
                 >
-                  <span className="flex items-center gap-2 font-mono text-[11px]">
+                  <span className="flex items-center gap-2 font-mono text-xs">
                     <svg className="w-3.5 h-3.5 opacity-70 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <span>{table.name}.csv</span>
                   </span>
-                  <span className="text-[10px] opacity-60">
+                  <span className="text-xs opacity-70">
                     {table.rows?.length ?? 0} rows
                   </span>
                 </button>
