@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { THEME_CONFIGS, type ThemeId } from "./nlSqlTypes";
+import Image from "next/image";
+import Logo from "../../public/Logo.png";
 
 export type NavSection = "workspace" | "learn" | "help" | "developedBy";
 
@@ -80,15 +82,7 @@ export function AppHeader({
           className="flex items-center gap-2.5 shrink-0 cursor-pointer text-left bg-transparent border-none p-0 focus:outline-none"
           title="Return to Workspace"
         >
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center font-mono font-black text-xs shadow-xs"
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-foreground)",
-            }}
-          >
-            SQL
-          </div>
+          <Image src={Logo} alt="NL2Query Logo" className="w-10 h-10" />
           <div className="flex items-baseline gap-2">
             <h1
               className="text-base font-bold tracking-tight whitespace-nowrap"
@@ -111,22 +105,23 @@ export function AppHeader({
                 key={item.id}
                 type="button"
                 onClick={() => onSectionChange?.(item.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs md:text-sm transition-all cursor-pointer border whitespace-nowrap font-medium ${isActive
-                  ? "font-semibold shadow-xs"
-                  : "opacity-80 hover:opacity-100 hover:bg-[var(--surface-hover)]"
-                  }`}
+                className={`px-3 py-1.5 rounded-lg text-xs md:text-sm transition-all cursor-pointer border whitespace-nowrap font-medium ${
+                  isActive
+                    ? "font-semibold shadow-xs"
+                    : "opacity-80 hover:opacity-100 hover:bg-[var(--surface-hover)]"
+                }`}
                 style={
                   isActive
                     ? {
-                      background: "var(--surface-subtle)",
-                      borderColor: "var(--accent)",
-                      color: "var(--foreground)",
-                    }
+                        background: "var(--surface-subtle)",
+                        borderColor: "var(--accent)",
+                        color: "var(--foreground)",
+                      }
                     : {
-                      background: "transparent",
-                      borderColor: "transparent",
-                      color: "var(--muted)",
-                    }
+                        background: "transparent",
+                        borderColor: "transparent",
+                        color: "var(--muted)",
+                      }
                 }
               >
                 {item.label}
@@ -187,8 +182,9 @@ export function AppHeader({
 
           {/* Chevron */}
           <svg
-            className={`w-3.5 h-3.5 opacity-60 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
-              }`}
+            className={`w-3.5 h-3.5 opacity-60 transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            }`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -251,9 +247,7 @@ export function AppHeader({
                         ? "var(--surface-subtle)"
                         : "transparent",
                       color: "var(--foreground)",
-                      borderColor: isSelected
-                        ? "var(--accent)"
-                        : "transparent",
+                      borderColor: isSelected ? "var(--accent)" : "transparent",
                       borderWidth: "1px",
                       borderStyle: "solid",
                     }}
