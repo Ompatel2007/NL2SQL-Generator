@@ -15,7 +15,9 @@ export function InputPanel({
   datasets,
   selectedDatasetId,
   activeSchema = [],
+  minPanelHeight,
   maxPanelHeight,
+  panelHeight,
   onDatasetChange,
   examples,
   nlInput,
@@ -139,8 +141,9 @@ export function InputPanel({
         background: "var(--panel)",
         borderColor: "var(--border)",
         color: "var(--foreground)",
-        height: maxPanelHeight ? `${maxPanelHeight}px` : undefined,
-        maxHeight: maxPanelHeight ? `${maxPanelHeight}px` : "calc(100vh - 5rem)",
+        minHeight: minPanelHeight ? (typeof minPanelHeight === "number" ? `${minPanelHeight}px` : minPanelHeight) : "calc(100vh - 5.25rem)",
+        maxHeight: maxPanelHeight ? `${maxPanelHeight}px` : undefined,
+        height: panelHeight ? (typeof panelHeight === "number" ? `${panelHeight}px` : panelHeight) : undefined,
       }}
       aria-label="Input panel"
     >
@@ -484,30 +487,30 @@ export function InputPanel({
           />
 
           {/* Real-time Typing Debug Indicator */}
-          {validation.status !== "empty" && (
+          {(validation.status !== "empty" || Boolean(error)) && (
             <div className="mt-1.5 flex items-center justify-between text-xs font-mono">
-              {validation.status === "valid" && (
+              {!error && validation.status === "valid" && (
                 <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
                   <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>✓ Valid SQL</span>
+                  <span>Valid SQL</span>
                 </span>
               )}
-              {validation.status === "incomplete" && (
+              {!error && validation.status === "incomplete" && (
                 <span className="text-amber-400 font-medium flex items-center gap-1.5">
                   <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
-                  <span>⚠ Incomplete SQL: {validation.message}</span>
+                  <span>Incomplete SQL: {validation.message}</span>
                 </span>
               )}
-              {validation.status === "invalid" && (
+              {(Boolean(error) || validation.status === "invalid") && (
                 <span className="text-rose-400 font-medium flex items-center gap-1.5">
                   <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                  <span>✕ Possible error: {validation.message}</span>
+                  <span>Invalid: {error || validation.message}</span>
                 </span>
               )}
             </div>
@@ -524,7 +527,7 @@ export function InputPanel({
           >
             <span>Execute SQL</span>
           </button>
-          {error && (
+          {error && validation.status === "empty" && (
             <p role="alert" className="mt-2 text-xs text-red-500 font-mono">
               {error}
             </p>

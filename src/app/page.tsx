@@ -87,9 +87,20 @@ export default function Home() {
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"input" | "canvas" | "tools">("canvas");
 
-  // Dynamic Central Panel Height Measurement
+  // Dynamic Central Panel Height & Window Height Measurement
   const centerPanelRef = useRef<HTMLDivElement>(null);
   const [centerHeight, setCenterHeight] = useState<number | undefined>(undefined);
+  const [windowHeight, setWindowHeight] = useState<number>(
+    typeof window !== "undefined" ? window.innerHeight : 850
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowHeight(window.innerHeight);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const el = centerPanelRef.current;
@@ -112,6 +123,15 @@ export default function Home() {
       return () => ro.disconnect();
     }
   }, [tab, activeSection, steps, finalRows, explanation]);
+
+  // Pic 2 rule:
+  // - Minimum height is window height (available window height: windowHeight - header ~52px - main p-4 ~32px)
+  // - Max height is central pane's height IF central pane's height is more than screen height
+  const availableScreenHeight = Math.max(350, (windowHeight || 850) - 84);
+  const isCenterTallerThanScreen = Boolean(centerHeight && centerHeight > availableScreenHeight);
+  const sidePanelMinHeight = availableScreenHeight;
+  const sidePanelMaxHeight = isCenterTallerThanScreen ? centerHeight : undefined;
+  const sidePanelHeight = isCenterTallerThanScreen ? centerHeight : availableScreenHeight;
 
   const isDark = useMemo(() => theme !== "pearl", [theme]);
 
@@ -661,7 +681,10 @@ export default function Home() {
               onTranslate={() => translateNL()}
               nlInfo={nlInfo}
               sql={sql}
-              onSqlChange={setSql}
+              onSqlChange={(newSql) => {
+                setSql(newSql);
+                if (error) setError(undefined);
+              }}
               onRunQuery={() => runQuery()}
               onExampleSelect={selectExample}
               onResetDatabase={resetDatabase}
@@ -673,7 +696,9 @@ export default function Home() {
               voiceFeedback={voiceFeedback}
               onToggleVoiceFeedback={setVoiceFeedback}
               theme={theme}
-              maxPanelHeight={centerHeight}
+              minPanelHeight={sidePanelMinHeight}
+              maxPanelHeight={sidePanelMaxHeight}
+              panelHeight={sidePanelHeight}
             />
           </div>
         </div>
@@ -762,7 +787,9 @@ export default function Home() {
               dataset={selectedDataset}
               activeSchema={activeSchema}
               onDownloadReport={handleDownloadReport}
-              maxPanelHeight={centerHeight}
+              minPanelHeight={sidePanelMinHeight}
+              maxPanelHeight={sidePanelMaxHeight}
+              panelHeight={sidePanelHeight}
             />
           </div>
         </div>

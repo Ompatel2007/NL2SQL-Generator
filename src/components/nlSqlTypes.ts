@@ -79,7 +79,9 @@ export interface InputPanelProps {
   datasets: Dataset[];
   selectedDatasetId: string;
   activeSchema?: Table[];
+  minPanelHeight?: number | string;
   maxPanelHeight?: number;
+  panelHeight?: number | string;
   onDatasetChange: (id: string) => void;
   examples: DatasetExample[];
   nlInput: string;

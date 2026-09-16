@@ -1,4 +1,5 @@
 import type { Table } from "./schema";
+import { validateSQLAgainstSchema } from "./sqlEngine";
 
 export type ValidationStatus = "valid" | "incomplete" | "invalid" | "empty";
 
@@ -86,9 +87,10 @@ export function validateSQL(rawSql: string, schema: Table[]): SQLValidationResul
   const lastToken = tokens[tokens.length - 1].toUpperCase();
   const incompleteTrailing = [
     "SELECT", "FROM", "WHERE", "JOIN", "ON", "BY", "HAVING", "LIMIT",
-    "SET", "INTO", "VALUES", "AND", "OR", "NOT", "LIKE", "IN"
+    "SET", "INTO", "VALUES", "AND", "OR", "NOT", "LIKE", "IN",
+    "=", "!=", "<>", ">", "<", ">=", "<=", ",", "AS"
   ];
-  if (incompleteTrailing.includes(lastToken)) {
+  if (incompleteTrailing.includes(lastToken) || normalized.endsWith(",")) {
     return {
       status: "incomplete",
       message: `Incomplete clause: expecting identifier or expression after '${tokens[tokens.length - 1]}'`,
@@ -202,6 +204,13 @@ export function validateSQL(rawSql: string, schema: Table[]): SQLValidationResul
           message: "Incomplete WHERE clause: expecting condition",
         };
       }
+      const whereTokens = tokens.slice(whereIndex + 1);
+      if (whereTokens.length === 1 && !sql.endsWith(";")) {
+        return {
+          status: "incomplete",
+          message: `Incomplete WHERE clause: expecting operator and value after '${whereTokens[0]}'`,
+        };
+      }
     }
 
     // Check GROUP BY if present
@@ -282,8 +291,27 @@ export function validateSQL(rawSql: string, schema: Table[]): SQLValidationResul
     }
   }
 
-  return {
-    status: "valid",
-    message: "Valid SQL",
-  };
+  // Full schema and query syntax validation against active schema
+  try {
+    validateSQLAgainstSchema(sql, schema);
+    return {
+      status: "valid",
+      message: "Valid SQL",
+    };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    if (
+      errorMsg.toLowerCase().includes("missing") &&
+      !sql.endsWith(";")
+    ) {
+      return {
+        status: "incomplete",
+        message: errorMsg,
+      };
+    }
+    return {
+      status: "invalid",
+      message: errorMsg,
+    };
+  }
 }

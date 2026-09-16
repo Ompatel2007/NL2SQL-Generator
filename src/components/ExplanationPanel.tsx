@@ -15,7 +15,9 @@ interface ExplanationPanelProps {
   dataset?: Dataset;
   activeSchema?: Table[];
   onDownloadReport?: (format: "pdf" | "docx" | "txt") => void;
+  minPanelHeight?: number | string;
   maxPanelHeight?: number;
+  panelHeight?: number | string;
 }
 
 const NOTES: Record<string, string> = {
@@ -58,7 +60,9 @@ export function ExplanationPanel({
   dataset,
   activeSchema = [],
   onDownloadReport,
+  minPanelHeight,
   maxPanelHeight,
+  panelHeight,
 }: ExplanationPanelProps) {
   const [isReportCollapsed, setIsReportCollapsed] = useState(false);
 
@@ -98,8 +102,9 @@ export function ExplanationPanel({
         background: "var(--panel)",
         borderColor: "var(--border)",
         color: "var(--foreground)",
-        height: maxPanelHeight ? `${maxPanelHeight}px` : undefined,
-        maxHeight: maxPanelHeight ? `${maxPanelHeight}px` : "calc(100vh - 5rem)",
+        minHeight: minPanelHeight ? (typeof minPanelHeight === "number" ? `${minPanelHeight}px` : minPanelHeight) : "calc(100vh - 5.25rem)",
+        maxHeight: maxPanelHeight ? `${maxPanelHeight}px` : undefined,
+        height: panelHeight ? (typeof panelHeight === "number" ? `${panelHeight}px` : panelHeight) : undefined,
       }}
       aria-label="Explanation panel"
     >
