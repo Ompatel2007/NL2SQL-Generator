@@ -1411,7 +1411,7 @@ WHERE city = 'Mumbai';`}
             <iframe
               className="w-full h-full"
               src="https://www.youtube-nocookie.com/embed/SSKVgrwhzus"
-              title="What is NLP (Natural Language Processing)? - IBM Technology"
+              title="SQL Full Course for Beginners - Data with Baraa"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
@@ -1422,9 +1422,9 @@ WHERE city = 'Mumbai';`}
             style={{ color: "var(--muted)" }}
           >
             Educational Video:{" "}
-            <em>&ldquo;What is NLP (Natural Language Processing)?&rdquo;</em> by
-            IBM Technology — detailing tokenization, semantic extraction, and AI
-            processing used in modern language interfaces.
+            <em>&ldquo;SQL Full Course for Beginners&rdquo;</em> by Data with
+            Baraa — Detaling the fundamentals of SQL, relational algebra, and
+            query execution.
           </p>
         </section>
 
