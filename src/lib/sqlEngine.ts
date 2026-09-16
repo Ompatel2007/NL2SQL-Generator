@@ -503,15 +503,30 @@ function parseSelect(q: string, schema: Table[]): ParsedSelectQuery {
   // Parse WHERE
   const where = clauses.get("where");
   if (where) {
+    if (/==+/.test(where)) {
+      throw new Error("Invalid operator '=='. In SQL, use '=' for equality.");
+    }
     const m = where.match(/^([\w.]+)\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
-    if (!m)
+    if (!m) {
       throw new Error(
         "Only single-condition WHERE (column operator value) is supported.",
       );
+    }
+    const val = m[3].trim();
+    if (!val || /^[=<>!;&|]+$/.test(val)) {
+      throw new Error(`Missing or invalid value after '${m[2]}' in WHERE condition.`);
+    }
+    const isStringLit = /^'([^'\\]|\\.)*'$/.test(val) || /^"([^"\\]|\\.)*"$/.test(val);
+    const isNumLit = /^-?\d+(\.\d+)?$/.test(val);
+    const isBoolOrNull = /^(true|false|null)$/i.test(val);
+    const isIdent = /^[\w.]+$/.test(val);
+    if (!isStringLit && !isNumLit && !isBoolOrNull && !isIdent) {
+      throw new Error(`Invalid value syntax in WHERE condition: "${val}"`);
+    }
     parsed.where = {
       column: m[1],
       op: m[2].toUpperCase(),
-      value: unquote(m[3].trim()),
+      value: unquote(val),
     };
   }
 
@@ -669,14 +684,29 @@ function parseUpdate(q: string, schema: Table[]): ParsedUpdateQuery {
 
   let where: { column: string; op: string; value: string } | undefined;
   if (match[3]) {
-    const wm = match[3].match(/^([\w.]+)\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
+    const whereStr = match[3].trim();
+    if (/==+/.test(whereStr)) {
+      throw new Error("Invalid operator '=='. In SQL, use '=' for equality.");
+    }
+    const wm = whereStr.match(/^([\w.]+)\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
     if (!wm) {
       throw new Error("Invalid WHERE clause in UPDATE statement.");
+    }
+    const val = wm[3].trim();
+    if (!val || /^[=<>!;&|]+$/.test(val)) {
+      throw new Error(`Missing or invalid value after '${wm[2]}' in WHERE condition.`);
+    }
+    const isStringLit = /^'([^'\\]|\\.)*'$/.test(val) || /^"([^"\\]|\\.)*"$/.test(val);
+    const isNumLit = /^-?\d+(\.\d+)?$/.test(val);
+    const isBoolOrNull = /^(true|false|null)$/i.test(val);
+    const isIdent = /^[\w.]+$/.test(val);
+    if (!isStringLit && !isNumLit && !isBoolOrNull && !isIdent) {
+      throw new Error(`Invalid value syntax in WHERE condition: "${val}"`);
     }
     where = {
       column: wm[1],
       op: wm[2].toUpperCase(),
-      value: unquote(wm[3].trim()),
+      value: unquote(val),
     };
   }
 
@@ -704,14 +734,29 @@ function parseDelete(q: string, schema: Table[]): ParsedDeleteQuery {
 
   let where: { column: string; op: string; value: string } | undefined;
   if (match[2]) {
-    const wm = match[2].match(/^([\w.]+)\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
+    const whereStr = match[2].trim();
+    if (/==+/.test(whereStr)) {
+      throw new Error("Invalid operator '=='. In SQL, use '=' for equality.");
+    }
+    const wm = whereStr.match(/^([\w.]+)\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
     if (!wm) {
       throw new Error("Invalid WHERE clause in DELETE statement.");
+    }
+    const val = wm[3].trim();
+    if (!val || /^[=<>!;&|]+$/.test(val)) {
+      throw new Error(`Missing or invalid value after '${wm[2]}' in WHERE condition.`);
+    }
+    const isStringLit = /^'([^'\\]|\\.)*'$/.test(val) || /^"([^"\\]|\\.)*"$/.test(val);
+    const isNumLit = /^-?\d+(\.\d+)?$/.test(val);
+    const isBoolOrNull = /^(true|false|null)$/i.test(val);
+    const isIdent = /^[\w.]+$/.test(val);
+    if (!isStringLit && !isNumLit && !isBoolOrNull && !isIdent) {
+      throw new Error(`Invalid value syntax in WHERE condition: "${val}"`);
     }
     where = {
       column: wm[1],
       op: wm[2].toUpperCase(),
-      value: unquote(wm[3].trim()),
+      value: unquote(val),
     };
   }
 

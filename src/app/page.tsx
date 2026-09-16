@@ -90,11 +90,12 @@ export default function Home() {
   // Dynamic Central Panel Height & Window Height Measurement
   const centerPanelRef = useRef<HTMLDivElement>(null);
   const [centerHeight, setCenterHeight] = useState<number | undefined>(undefined);
-  const [windowHeight, setWindowHeight] = useState<number>(
-    typeof window !== "undefined" ? window.innerHeight : 850
-  );
+  const [windowHeight, setWindowHeight] = useState<number | undefined>(undefined);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
+    setWindowHeight(window.innerHeight);
     const handleResize = () => {
       setWindowHeight(window.innerHeight);
     };
@@ -127,11 +128,14 @@ export default function Home() {
   // Pic 2 rule:
   // - Minimum height is window height (available window height: windowHeight - header ~52px - main p-4 ~32px)
   // - Max height is central pane's height IF central pane's height is more than screen height
-  const availableScreenHeight = Math.max(350, (windowHeight || 850) - 84);
-  const isCenterTallerThanScreen = Boolean(centerHeight && centerHeight > availableScreenHeight);
-  const sidePanelMinHeight = availableScreenHeight;
-  const sidePanelMaxHeight = isCenterTallerThanScreen ? centerHeight : undefined;
-  const sidePanelHeight = isCenterTallerThanScreen ? centerHeight : availableScreenHeight;
+  // During SSR and initial hydration, use consistent CSS string "calc(100vh - 5.25rem)" to prevent hydration mismatches
+  const availableScreenHeight = isMounted && windowHeight ? Math.max(350, windowHeight - 84) : undefined;
+  const isCenterTallerThanScreen = Boolean(
+    availableScreenHeight && centerHeight && centerHeight > availableScreenHeight
+  );
+  const sidePanelMinHeight = isMounted && availableScreenHeight ? availableScreenHeight : "calc(100vh - 5.25rem)";
+  const sidePanelMaxHeight = isMounted && isCenterTallerThanScreen ? centerHeight : undefined;
+  const sidePanelHeight = isMounted && isCenterTallerThanScreen ? centerHeight : (availableScreenHeight || "calc(100vh - 5.25rem)");
 
   const isDark = useMemo(() => theme !== "pearl", [theme]);
 

@@ -9,7 +9,7 @@ import {
   speakText,
   type VoiceAudioResult,
 } from "@/lib/useSpeechRecognition";
-import { validateSQL, type SQLValidationResult } from "@/lib/sqlValidator";
+import { analyzeSQL, type SQLAssistantResult } from "@/lib/sqlAssistant";
 
 export function InputPanel({
   datasets,
@@ -43,22 +43,58 @@ export function InputPanel({
 }: InputPanelProps) {
   const [autoExecute, setAutoExecute] = useState(true);
 
-  // Real-time debounced SQL validation while typing
-  const [validation, setValidation] = useState<SQLValidationResult>({
-    status: "empty",
-    message: "",
+  // Real-time debounced SQL Assistant & Debugger while typing
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [cursorPos, setCursorPos] = useState<number | undefined>(undefined);
+  const [assistantResult, setAssistantResult] = useState<SQLAssistantResult>({
+    severity: "valid",
+    title: "",
+    suggestions: [],
   });
 
   useEffect(() => {
     if (!sql.trim()) {
-      setValidation({ status: "empty", message: "" });
+      setAssistantResult({ severity: "valid", title: "", suggestions: [] });
       return;
     }
     const timer = setTimeout(() => {
-      setValidation(validateSQL(sql, activeSchema || []));
-    }, 350);
+      const res = analyzeSQL(sql, activeSchema || []);
+      setAssistantResult(res);
+    }, 200);
     return () => clearTimeout(timer);
   }, [sql, activeSchema]);
+
+  const handleApplySuggestion = (textToInsert: string, range?: [number, number]) => {
+    let newSql = sql;
+    let nextCursor = sql.length;
+
+    if (range && range[0] >= 0 && range[1] >= range[0]) {
+      newSql = sql.slice(0, range[0]) + textToInsert + sql.slice(range[1]);
+      nextCursor = range[0] + textToInsert.length;
+    } else {
+      const pos = cursorPos ?? (textareaRef.current?.selectionStart ?? sql.length);
+      const beforeChar = pos > 0 ? sql[pos - 1] : "";
+      const needsLeadingSpace =
+        beforeChar &&
+        !/\s/.test(beforeChar) &&
+        !textToInsert.startsWith(" ") &&
+        !textToInsert.startsWith(",") &&
+        !textToInsert.startsWith(")");
+      const insertStr = (needsLeadingSpace ? " " : "") + textToInsert;
+      newSql = sql.slice(0, pos) + insertStr + sql.slice(pos);
+      nextCursor = pos + insertStr.length;
+    }
+
+    onSqlChange(newSql);
+    setCursorPos(nextCursor);
+
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(nextCursor, nextCursor);
+      }
+    });
+  };
 
   // Handle completion of audio recording / speech
   const handleAudioReady = useCallback(
@@ -473,11 +509,18 @@ export function InputPanel({
             2. Or write SQL directly
           </h2>
           <textarea
+            ref={textareaRef}
             value={sql}
-            onChange={(event) => onSqlChange(event.target.value)}
+            onChange={(event) => {
+              onSqlChange(event.target.value);
+              setCursorPos(event.target.selectionStart);
+            }}
+            onClick={(event) => setCursorPos(event.currentTarget.selectionStart)}
+            onKeyUp={(event) => setCursorPos(event.currentTarget.selectionStart)}
+            onSelect={(event) => setCursorPos(event.currentTarget.selectionStart)}
             rows={4}
             spellCheck={false}
-            className="w-full p-2 text-sm font-mono resize-y rounded-lg border focus:outline-none"
+            className="w-full p-2.5 text-sm font-mono resize-y rounded-lg border focus:outline-none transition-colors"
             style={{
               background: "var(--surface-subtle)",
               borderColor: "var(--border)",
@@ -486,32 +529,125 @@ export function InputPanel({
             aria-label="SQL query"
           />
 
-          {/* Real-time Typing Debug Indicator */}
-          {(validation.status !== "empty" || Boolean(error)) && (
-            <div className="mt-1.5 flex items-center justify-between text-xs font-mono">
-              {!error && validation.status === "valid" && (
-                <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>Valid SQL</span>
-                </span>
+          {/* Real-time SQL Assistant & Debugger Panel */}
+          {(assistantResult.title || Boolean(error)) && (
+            <div
+              className="mt-2 p-2.5 rounded-lg border text-xs font-mono transition-all space-y-2"
+              style={{
+                background: "var(--surface-subtle)",
+                borderColor: error
+                  ? "rgba(244, 63, 94, 0.4)"
+                  : assistantResult.severity === "error"
+                  ? "rgba(244, 63, 94, 0.35)"
+                  : assistantResult.severity === "warning"
+                  ? "rgba(245, 158, 11, 0.35)"
+                  : assistantResult.severity === "incomplete"
+                  ? "rgba(59, 130, 246, 0.3)"
+                  : "rgba(16, 185, 129, 0.3)",
+              }}
+            >
+              {/* Diagnostic Header */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                  {error || assistantResult.severity === "error" ? (
+                    <span className="flex items-center gap-1 text-rose-400 font-semibold shrink-0">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      <span>Error:</span>
+                    </span>
+                  ) : assistantResult.severity === "warning" ? (
+                    <span className="flex items-center gap-1 text-amber-400 font-semibold shrink-0">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span>Warning:</span>
+                    </span>
+                  ) : assistantResult.severity === "incomplete" ? (
+                    <span className="flex items-center gap-1 text-sky-400 font-medium shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                      <span>Incomplete:</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-emerald-400 font-semibold shrink-0">
+                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Valid SQL</span>
+                    </span>
+                  )}
+
+                  <span className="truncate" style={{ color: "var(--foreground)" }}>
+                    {error || assistantResult.what || assistantResult.title}
+                  </span>
+                </div>
+
+                {/* Quick Fix Button (if available) */}
+                {assistantResult.quickFix && !error && (
+                  <button
+                    type="button"
+                    onClick={() => handleApplySuggestion(assistantResult.quickFix!.replacement, assistantResult.quickFix!.range)}
+                    className="shrink-0 px-2 py-0.5 text-[11px] font-semibold rounded bg-[var(--accent)] text-[var(--accent-foreground)] hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
+                    title={`Apply: ${assistantResult.quickFix.replacement}`}
+                  >
+                    {assistantResult.quickFix.label}
+                  </button>
+                )}
+              </div>
+
+              {/* Structured Explanation (WHAT, WHERE, SUGGESTION) when problem or suggestion exists */}
+              {(assistantResult.where || assistantResult.suggestionText) && !error && assistantResult.severity !== "valid" && (
+                <div
+                  className="text-[11px] leading-relaxed pt-1.5 border-t opacity-90 space-y-0.5"
+                  style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+                >
+                  {assistantResult.where && (
+                    <div><span className="font-semibold text-zinc-300">WHERE:</span> {assistantResult.where}</div>
+                  )}
+                  {assistantResult.suggestionText && (
+                    <div><span className="font-semibold text-zinc-300">SUGGESTION:</span> {assistantResult.suggestionText}</div>
+                  )}
+                </div>
               )}
-              {!error && validation.status === "incomplete" && (
-                <span className="text-amber-400 font-medium flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <span>Incomplete SQL: {validation.message}</span>
-                </span>
-              )}
-              {(Boolean(error) || validation.status === "invalid") && (
-                <span className="text-rose-400 font-medium flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  <span>Invalid: {error || validation.message}</span>
-                </span>
+
+              {/* Context-Aware Suggestion Chips */}
+              {assistantResult.suggestions.length > 0 && !error && (
+                <div className="pt-1.5 border-t space-y-1" style={{ borderColor: "var(--border)" }}>
+                  {assistantResult.suggestionsTitle && (
+                    <div className="text-[10px] font-semibold tracking-wider uppercase opacity-70" style={{ color: "var(--muted)" }}>
+                      {assistantResult.suggestionsTitle}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto scrollbar-thin py-0.5">
+                    {assistantResult.suggestions.map((sugg, sIdx) => (
+                      <button
+                        key={`${sugg.category}-${sugg.label}-${sIdx}`}
+                        type="button"
+                        onClick={() => handleApplySuggestion(sugg.value, sugg.rangeToReplace)}
+                        className="px-2 py-0.5 rounded text-[11px] font-mono border transition-all cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--surface-hover)] hover:scale-105 active:scale-95"
+                        style={{
+                          background: "var(--panel)",
+                          borderColor: "var(--border)",
+                          color: sugg.category === "table"
+                            ? "var(--accent)"
+                            : sugg.category === "column"
+                            ? "#38bdf8"
+                            : sugg.category === "operator"
+                            ? "#fbbf24"
+                            : sugg.category === "value"
+                            ? "#34d399"
+                            : "var(--foreground)",
+                        }}
+                        title={sugg.detail ? `${sugg.value} (${sugg.detail})` : `Insert ${sugg.value}`}
+                      >
+                        <span>{sugg.label}</span>
+                        {sugg.detail && (
+                          <span className="ml-1 opacity-50 text-[9px] font-sans">({sugg.detail})</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -527,7 +663,7 @@ export function InputPanel({
           >
             <span>Execute SQL</span>
           </button>
-          {error && validation.status === "empty" && (
+          {error && !assistantResult.title && (
             <p role="alert" className="mt-2 text-xs text-red-500 font-mono">
               {error}
             </p>
