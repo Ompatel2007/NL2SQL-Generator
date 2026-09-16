@@ -25,49 +25,51 @@ export interface HistoryItem {
 
 export type Tab = "result" | "schema" | "explanation" | "theory";
 
-export type ThemeId = "eclipse" | "lazuli" | "pearl" | "slate" | "volt";
+export type ThemeId = "slate" | "pearl" | "eclipse" | "lazuli" | "volt";
 
 export interface ThemeConfig {
   id: ThemeId;
   name: string;
   subtitle: string;
   isDark: boolean;
+  isDefault?: boolean;
   swatches: string[];
 }
 
 export const THEME_CONFIGS: ThemeConfig[] = [
   {
-    id: "eclipse",
-    name: "1. Eclipse",
-    subtitle: "Vivid purple & multi-color pipeline (Default)",
+    id: "slate",
+    name: "1. Slate",
+    subtitle: "Monochrome zinc & obsidian",
     isDark: true,
-    swatches: ["#09090b", "#7c3aed", "#0ea5e9", "#10b981"],
-  },
-  {
-    id: "lazuli",
-    name: "2. Lazuli",
-    subtitle: "Deep midnight navy & electric blue",
-    isDark: true,
-    swatches: ["#0b1120", "#111a2e", "#3b82f6", "#e2e8f0"],
+    isDefault: true,
+    swatches: ["#09090b", "#18181b", "#ffffff", "#a1a1aa"],
   },
   {
     id: "pearl",
-    name: "3. Pearl",
+    name: "2. Pearl",
     subtitle: "Crisp white & royal indigo",
     isDark: false,
     swatches: ["#f8fafc", "#ffffff", "#4f46e5", "#0f172a"],
   },
   {
-    id: "slate",
-    name: "4. Slate",
-    subtitle: "Monochrome zinc & minimalist obsidian",
+    id: "eclipse",
+    name: "3. Eclipse",
+    subtitle: "Vivid purple & multi-color",
     isDark: true,
-    swatches: ["#09090b", "#18181b", "#ffffff", "#a1a1aa"],
+    swatches: ["#09090b", "#7c3aed", "#0ea5e9", "#10b981"],
+  },
+  {
+    id: "lazuli",
+    name: "4. Lazuli",
+    subtitle: "Midnight navy & electric blue",
+    isDark: true,
+    swatches: ["#0b1120", "#111a2e", "#3b82f6", "#e2e8f0"],
   },
   {
     id: "volt",
     name: "5. Volt",
-    subtitle: "High contrast black, yellow, red & green",
+    subtitle: "High contrast black & yellow",
     isDark: true,
     swatches: ["#000000", "#ffff00", "#00ff66", "#ff3333"],
   },

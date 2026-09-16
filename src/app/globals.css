@@ -1,51 +1,31 @@
 @import "tailwindcss";
 
 /* =========================================================================
-   THEME DESIGN SYSTEM (Eclipse, Lazuli, Pearl, Slate, Volt)
+   THEME DESIGN SYSTEM (Slate, Pearl, Eclipse, Lazuli, Volt)
    ========================================================================= */
 
-/* 1. Eclipse (Default Colorful Dark) */
+/* 1. Slate (Default Monochrome Greyscale Dark) */
 :root,
-html[data-theme="eclipse"],
-.theme-eclipse {
+html[data-theme="slate"],
+.theme-slate {
   --background: #09090b;
   --foreground: #f4f4f5;
-  --panel: #111116;
-  --panel-hover: #181820;
-  --surface-subtle: #1a1a24;
-  --surface-hover: #262636;
-  --border: #282834;
-  --accent: #7c3aed;
-  --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
-  --accent-foreground: #ffffff;
-  --accent-subtle: #2e1065;
-  --muted: #a1a1b0;
-  --scrollbar-thumb-from: #8b5cf6;
-  --scrollbar-thumb-to: #6366f1;
-  --scrollbar-thumb-hover: #a78bfa;
+  --panel: #121215;
+  --panel-hover: #1c1c20;
+  --surface-subtle: #18181c;
+  --surface-hover: #24242c;
+  --border: #27272f;
+  --accent: #ffffff;
+  --accent-gradient: linear-gradient(135deg, #ffffff 0%, #e4e4e7 100%);
+  --accent-foreground: #09090b;
+  --accent-subtle: #27272a;
+  --muted: #a1a1aa;
+  --scrollbar-thumb-from: #52525b;
+  --scrollbar-thumb-to: #3f3f46;
+  --scrollbar-thumb-hover: #71717a;
 }
 
-/* 2. Lazuli (Original Blue Dark) */
-html[data-theme="lazuli"],
-.theme-lazuli {
-  --background: #0b1120;
-  --foreground: #e2e8f0;
-  --panel: #111a2e;
-  --panel-hover: #18233d;
-  --surface-subtle: #162238;
-  --surface-hover: #1e2f4d;
-  --border: #1e293b;
-  --accent: #3b82f6;
-  --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-  --accent-foreground: #ffffff;
-  --accent-subtle: #1e1b4b;
-  --muted: #94a3b8;
-  --scrollbar-thumb-from: #3b82f6;
-  --scrollbar-thumb-to: #6366f1;
-  --scrollbar-thumb-hover: #60a5fa;
-}
-
-/* 3. Pearl (Original Blue-White Light) */
+/* 2. Pearl (Original Blue-White Light) */
 html[data-theme="pearl"],
 .theme-pearl {
   --background: #f8fafc;
@@ -65,24 +45,44 @@ html[data-theme="pearl"],
   --scrollbar-thumb-hover: #4338ca;
 }
 
-/* 4. Slate (Monochrome Greyscale Dark) */
-html[data-theme="slate"],
-.theme-slate {
+/* 3. Eclipse (Colorful Dark) */
+html[data-theme="eclipse"],
+.theme-eclipse {
   --background: #09090b;
   --foreground: #f4f4f5;
-  --panel: #121215;
-  --panel-hover: #1c1c20;
-  --surface-subtle: #18181c;
-  --surface-hover: #24242c;
-  --border: #27272f;
-  --accent: #ffffff;
-  --accent-gradient: linear-gradient(135deg, #ffffff 0%, #e4e4e7 100%);
-  --accent-foreground: #09090b;
-  --accent-subtle: #27272a;
-  --muted: #a1a1aa;
-  --scrollbar-thumb-from: #52525b;
-  --scrollbar-thumb-to: #3f3f46;
-  --scrollbar-thumb-hover: #71717a;
+  --panel: #111116;
+  --panel-hover: #181820;
+  --surface-subtle: #1a1a24;
+  --surface-hover: #262636;
+  --border: #282834;
+  --accent: #7c3aed;
+  --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  --accent-foreground: #ffffff;
+  --accent-subtle: #2e1065;
+  --muted: #a1a1b0;
+  --scrollbar-thumb-from: #8b5cf6;
+  --scrollbar-thumb-to: #6366f1;
+  --scrollbar-thumb-hover: #a78bfa;
+}
+
+/* 4. Lazuli (Original Blue Dark) */
+html[data-theme="lazuli"],
+.theme-lazuli {
+  --background: #0b1120;
+  --foreground: #e2e8f0;
+  --panel: #111a2e;
+  --panel-hover: #18233d;
+  --surface-subtle: #162238;
+  --surface-hover: #1e2f4d;
+  --border: #1e293b;
+  --accent: #3b82f6;
+  --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  --accent-foreground: #ffffff;
+  --accent-subtle: #1e1b4b;
+  --muted: #94a3b8;
+  --scrollbar-thumb-from: #3b82f6;
+  --scrollbar-thumb-to: #6366f1;
+  --scrollbar-thumb-hover: #60a5fa;
 }
 
 /* 5. Volt (High Contrast Black, Yellow, Red, Green) */

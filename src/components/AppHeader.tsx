@@ -286,7 +286,7 @@ export function AppHeader({
                           >
                             {t.name}
                           </span>
-                          {t.id === "eclipse" && (
+                          {t.isDefault && (
                             <span
                               className="text-[10px] px-1.5 py-0.5 rounded-full font-mono border font-semibold"
                               style={{

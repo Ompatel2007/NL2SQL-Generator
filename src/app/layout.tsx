@@ -34,19 +34,19 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                let saved = localStorage.getItem('nlp-sql-theme') || 'eclipse';
+                let saved = localStorage.getItem('nlp-sql-theme') || 'slate';
                 const legacyMap = {
                   'colorful-dark': 'eclipse',
                   'blue-dark': 'lazuli',
                   'blue-light': 'pearl',
                   'greyscale': 'slate',
                   'high-contrast': 'volt',
-                  'dark': 'eclipse',
+                  'dark': 'slate',
                   'light': 'pearl'
                 };
                 if (legacyMap[saved]) saved = legacyMap[saved];
-                const validThemes = ['eclipse', 'lazuli', 'pearl', 'slate', 'volt'];
-                const theme = validThemes.includes(saved) ? saved : 'eclipse';
+                const validThemes = ['slate', 'pearl', 'eclipse', 'lazuli', 'volt'];
+                const theme = validThemes.includes(saved) ? saved : 'slate';
                 
                 document.documentElement.setAttribute('data-theme', theme);
                 document.documentElement.classList.add('theme-' + theme);

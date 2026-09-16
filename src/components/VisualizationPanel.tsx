@@ -7,7 +7,7 @@ import { Theory } from "./Theory";
 import { ChenERDiagram } from "./ChenERDiagram";
 import { QueryExplanationView } from "./QueryExplanationView";
 
-function getStageBadgeClass(stage: string, theme: ThemeId = "eclipse"): string {
+function getStageBadgeClass(stage: string, theme: ThemeId = "slate"): string {
   if (theme === "volt") {
     switch (stage) {
       case "MUTATION":
@@ -124,7 +124,7 @@ export function VisualizationPanel({
   mermaidSource,
   schema,
   dark,
-  theme = "eclipse",
+  theme = "slate",
   explanation,
   hasExecuted = false,
 }: VisualizationPanelProps) {
@@ -210,7 +210,7 @@ function ResultView({
   onExportCSV,
   onExportReport,
   sql,
-  theme = "eclipse",
+  theme = "slate",
   hasExecuted,
 }: Omit<
   VisualizationPanelProps,

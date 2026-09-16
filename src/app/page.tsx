@@ -34,7 +34,7 @@ import {
 const CUSTOM_DATASETS_KEY = "nlp-sql-custom-datasets";
 
 export default function Home() {
-  const [theme, setTheme] = useState<ThemeId>("eclipse");
+  const [theme, setTheme] = useState<ThemeId>("slate");
   const [activeSection, setActiveSection] = useState<NavSection>("workspace");
   const [customDatasets, setCustomDatasets] = useState<Dataset[]>([]);
   const [deletedBuiltinIds, setDeletedBuiltinIds] = useState<string[]>([]);
@@ -162,21 +162,21 @@ export default function Home() {
   // Load theme from localStorage on mount
   useEffect(() => {
     try {
-      let savedTheme = localStorage.getItem("nlp-sql-theme") || "eclipse";
+      let savedTheme = localStorage.getItem("nlp-sql-theme") || "slate";
       const legacyMap: Record<string, ThemeId> = {
         "colorful-dark": "eclipse",
         "blue-dark": "lazuli",
         "blue-light": "pearl",
         "greyscale": "slate",
         "high-contrast": "volt",
-        "dark": "eclipse",
+        "dark": "slate",
         "light": "pearl",
       };
       if (legacyMap[savedTheme]) savedTheme = legacyMap[savedTheme];
-      const valid: ThemeId[] = ["eclipse", "lazuli", "pearl", "slate", "volt"];
+      const valid: ThemeId[] = ["slate", "pearl", "eclipse", "lazuli", "volt"];
       const activeTheme = valid.includes(savedTheme as ThemeId)
         ? (savedTheme as ThemeId)
-        : "eclipse";
+        : "slate";
       setTheme(activeTheme);
       applyThemeToDOM(activeTheme);
     } catch { }
