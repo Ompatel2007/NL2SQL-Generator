@@ -219,19 +219,19 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
 
   return (
     <main
-      className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full leading-relaxed"
+      className="flex-1 flex flex-col p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12 overflow-y-auto overflow-x-hidden w-full max-w-none leading-relaxed"
       style={{ color: "var(--foreground)" }}
       aria-label="Help and User Manual"
     >
       {/* Top Header / Breadcrumb */}
       <div
-        className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-8 border-b"
+        className="flex flex-wrap items-center justify-between gap-4 pb-5 mb-8 border-b"
         style={{ borderColor: "var(--border)" }}
       >
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex items-center gap-2 mb-2">
             <span
-              className="text-xs font-semibold px-2 py-0.5 rounded border"
+              className="text-sm font-semibold px-2.5 py-1 rounded border"
               style={{
                 background: "var(--surface-subtle)",
                 borderColor: "var(--accent)",
@@ -240,17 +240,17 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
             >
               User Manual
             </span>
-            <span className="text-xs opacity-70" style={{ color: "var(--muted)" }}>
+            <span className="text-sm opacity-70" style={{ color: "var(--muted)" }}>
               Step-by-Step Operating Guide
             </span>
           </div>
           <h1
-            className="text-xl md:text-3xl font-bold tracking-tight"
+            className="text-2xl md:text-4xl font-bold tracking-tight"
             style={{ color: "var(--foreground)" }}
           >
             Help &amp; User Manual
           </h1>
-          <p className="text-xs md:text-sm opacity-80 mt-1" style={{ color: "var(--muted)" }}>
+          <p className="text-sm md:text-base opacity-80 mt-1.5" style={{ color: "var(--muted)" }}>
             Complete operating manual for the NL→SQL Visualizer workspace, controls, and features.
           </p>
         </div>
@@ -258,7 +258,7 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
         <button
           type="button"
           onClick={onBackToWorkspace}
-          className="px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold border transition-all cursor-pointer shadow-xs hover:opacity-90 flex items-center gap-2"
+          className="px-4 py-2.5 rounded-lg text-sm md:text-base font-semibold border transition-all cursor-pointer shadow-xs hover:opacity-90 flex items-center gap-2"
           style={{
             background: "var(--surface-subtle)",
             borderColor: "var(--border)",
@@ -291,33 +291,33 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
         }}
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded bg-[var(--accent)] text-[var(--accent-foreground)] uppercase tracking-wider">
+          <span className="text-sm font-bold px-3 py-1 rounded bg-[var(--accent)] text-[var(--accent-foreground)] uppercase tracking-wider">
             Quick Start
           </span>
-          <h2 className="text-base md:text-lg font-bold" style={{ color: "var(--foreground)" }}>
+          <h2 className="text-lg md:text-xl font-bold" style={{ color: "var(--foreground)" }}>
             7-Step Getting Started Walkthrough
           </h2>
         </div>
-        <p className="text-xs md:text-sm opacity-80 leading-relaxed">
+        <p className="text-sm md:text-base opacity-85 leading-relaxed">
           Follow these simple steps to perform your first natural language query and inspect its relational execution:
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-2">
           {quickStartSteps.map((item) => (
             <div
               key={item.step}
-              className="p-3.5 rounded-lg border bg-[var(--surface-subtle)] space-y-1"
+              className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5"
               style={{ borderColor: "var(--border)" }}
             >
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[var(--panel)] text-[var(--accent)] border border-[var(--border)]">
+                <span className="text-sm font-mono font-bold px-2.5 py-0.5 rounded bg-[var(--panel)] text-[var(--accent)] border border-[var(--border)]">
                   {item.step}
                 </span>
-                <h3 className="text-xs md:text-sm font-bold" style={{ color: "var(--foreground)" }}>
+                <h3 className="text-sm md:text-base font-bold" style={{ color: "var(--foreground)" }}>
                   {item.title}
                 </h3>
               </div>
-              <p className="text-xs opacity-80 leading-relaxed pl-1">
+              <p className="text-sm opacity-85 leading-relaxed pl-1">
                 {item.desc}
               </p>
             </div>
@@ -328,10 +328,10 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
       {/* DETAILED USER MANUAL SECTIONS 1 - 19 */}
       <div className="space-y-6">
         <div>
-          <h2 className="text-base md:text-xl font-bold tracking-tight" style={{ color: "var(--foreground)" }}>
+          <h2 className="text-lg md:text-2xl font-bold tracking-tight" style={{ color: "var(--foreground)" }}>
             Detailed Feature Manual (Sections 1 — 19)
           </h2>
-          <p className="text-xs md:text-sm opacity-80 mt-0.5" style={{ color: "var(--muted)" }}>
+          <p className="text-sm md:text-base opacity-80 mt-1" style={{ color: "var(--muted)" }}>
             Detailed operation rules, input requirements, button names, processing lifecycles, and expected outputs.
           </p>
         </div>
@@ -339,54 +339,54 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
         {manualSections.map((sec) => (
           <section
             key={sec.id}
-            className="panel p-5 rounded-xl border space-y-3"
+            className="panel p-6 rounded-xl border space-y-4"
             style={{
               background: "var(--panel)",
               borderColor: "var(--border)",
             }}
           >
             <h3
-              className="text-sm md:text-base font-bold text-[var(--foreground)] border-b pb-2 flex items-center gap-2"
+              className="text-base md:text-lg font-bold text-[var(--foreground)] border-b pb-2.5 flex items-center gap-2"
               style={{ borderColor: "var(--border)" }}
             >
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-[var(--surface-subtle)] text-[var(--accent)] border border-[var(--border)]">
+              <span className="text-sm font-mono px-2.5 py-1 rounded bg-[var(--surface-subtle)] text-[var(--accent)] border border-[var(--border)]">
                 {sec.id}
               </span>
               <span>{sec.title}</span>
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs md:text-sm pt-1">
-              <div className="p-3 rounded-lg border bg-[var(--surface-subtle)] space-y-1" style={{ borderColor: "var(--border)" }}>
-                <span className="font-semibold text-xs text-[var(--accent)] uppercase tracking-wider block">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm md:text-base pt-1">
+              <div className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5" style={{ borderColor: "var(--border)" }}>
+                <span className="font-semibold text-sm text-[var(--accent)] uppercase tracking-wider block">
                   What it does:
                 </span>
                 <p className="opacity-90 leading-relaxed">{sec.whatItDoes}</p>
               </div>
 
-              <div className="p-3 rounded-lg border bg-[var(--surface-subtle)] space-y-1" style={{ borderColor: "var(--border)" }}>
-                <span className="font-semibold text-xs text-[var(--accent)] uppercase tracking-wider block">
+              <div className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5" style={{ borderColor: "var(--border)" }}>
+                <span className="font-semibold text-sm text-[var(--accent)] uppercase tracking-wider block">
                   What the user needs to enter/do:
                 </span>
                 <p className="opacity-90 leading-relaxed">{sec.whatToDo}</p>
               </div>
 
-              <div className="p-3 rounded-lg border bg-[var(--surface-subtle)] space-y-1" style={{ borderColor: "var(--border)" }}>
-                <span className="font-semibold text-xs text-[var(--accent)] uppercase tracking-wider block">
+              <div className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5" style={{ borderColor: "var(--border)" }}>
+                <span className="font-semibold text-sm text-[var(--accent)] uppercase tracking-wider block">
                   Which button / control to use:
                 </span>
                 <p className="opacity-90 leading-relaxed">{sec.controls}</p>
               </div>
 
-              <div className="p-3 rounded-lg border bg-[var(--surface-subtle)] space-y-1" style={{ borderColor: "var(--border)" }}>
-                <span className="font-semibold text-xs text-[var(--accent)] uppercase tracking-wider block">
+              <div className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5" style={{ borderColor: "var(--border)" }}>
+                <span className="font-semibold text-sm text-[var(--accent)] uppercase tracking-wider block">
                   What happens during processing:
                 </span>
                 <p className="opacity-90 leading-relaxed">{sec.processing}</p>
               </div>
             </div>
 
-            <div className="p-3 rounded-lg border bg-[var(--surface-subtle)] text-xs md:text-sm space-y-1" style={{ borderColor: "var(--border)" }}>
-              <span className="font-semibold text-xs text-emerald-400 uppercase tracking-wider block">
+            <div className="p-4 rounded-lg border bg-[var(--surface-subtle)] text-sm md:text-base space-y-1.5" style={{ borderColor: "var(--border)" }}>
+              <span className="font-semibold text-sm text-emerald-400 uppercase tracking-wider block">
                 What output the user should expect:
               </span>
               <p className="opacity-90 leading-relaxed">{sec.expectedOutput}</p>
