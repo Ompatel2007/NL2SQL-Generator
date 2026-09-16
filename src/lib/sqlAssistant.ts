@@ -50,7 +50,7 @@ const SQL_KEYWORDS = new Set([
  */
 function tokenizeWithOffsets(sql: string): SQLToken[] {
   const tokens: SQLToken[] = [];
-  const regex = /'[^']*'|"[^"]*"|`[^`]*`|===|==|!==|!=|<=|>=|<>|&&|\|\||[(),;=*]|[\w.]+/g;
+  const regex = /'[^']*'|"[^"]*"|`[^`]*`|===|==|!==|!=|<=|>=|<>|&&|\|\||[(),;=*<>+\/%-]|[\w.]+/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(sql)) !== null) {
     tokens.push({
@@ -607,7 +607,10 @@ export function analyzeSQL(
   // 11. Validate WHERE clause on the complete line
   const whereIdx = tokens.findIndex((t) => t.upper === "WHERE");
   if (whereIdx !== -1) {
-    const whereTokens = tokens.slice(whereIdx + 1);
+    const nextClauseIdx = tokens.findIndex(
+      (t, idx) => idx > whereIdx && ["GROUP", "ORDER", "HAVING", "LIMIT", "UNION"].includes(t.upper)
+    );
+    const whereTokens = nextClauseIdx !== -1 ? tokens.slice(whereIdx + 1, nextClauseIdx) : tokens.slice(whereIdx + 1);
 
     // Case: `WHERE` with nothing after it
     if (whereTokens.length === 0 || (whereTokens.length === 1 && whereTokens[0].text === ";")) {
@@ -652,6 +655,23 @@ export function analyzeSQL(
       const colRaw = whereTokens[0].text;
       const colName = colRaw.includes(".") ? colRaw.split(".")[1] : colRaw;
       const targetTbl = targetTables[0] || schema.find((t) => t.columns.some((c) => c.name.toLowerCase() === colName.toLowerCase())) || schema[0];
+
+      const KNOWN_OPS = new Set(["=", "!=", "<>", "<", ">", "<=", ">=", "LIKE", "IN", "IS", "NOT", "==", "===", "!=="]);
+      if (!KNOWN_OPS.has(opTok.upper)) {
+        return {
+          severity: "error",
+          title: `Operator expected after \`${colName}\``,
+          what: `Expected a comparison operator after \`${colName}\` instead of '${opTok.text}'`,
+          where: `After \`${colName}\``,
+          suggestionText: "Choose a comparison operator:",
+          suggestionsTitle: "Operators:",
+          suggestions: ["=", "!=", ">", "<", ">=", "<=", "LIKE", "IN"].map((op) => ({
+            label: op,
+            value: `${op} `,
+            category: "operator" as const,
+          })),
+        };
+      }
 
       if (hasTerminalSemicolon) {
         return {
