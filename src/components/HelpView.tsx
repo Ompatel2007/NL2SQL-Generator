@@ -251,7 +251,7 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
             Help &amp; User Manual
           </h1>
           <p className="text-sm md:text-base opacity-80 mt-1.5" style={{ color: "var(--muted)" }}>
-            Complete operating manual for the NL→SQL Visualizer workspace, controls, and features.
+            Complete operating manual for the NL2Query workspace, controls, and features.
           </p>
         </div>
 

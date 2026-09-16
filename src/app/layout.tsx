@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NL→SQL Visualizer — Learn Natural Language to SQL",
+  title: "NL2Query — Learn Natural Language to SQL",
   description:
     "Interactive teaching tool: translate natural language into SQL, execute it step-by-step, and visualize the relational algebra pipeline.",
 };

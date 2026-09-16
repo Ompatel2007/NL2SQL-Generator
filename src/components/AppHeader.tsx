@@ -94,7 +94,7 @@ export function AppHeader({
               className="text-base font-bold tracking-tight whitespace-nowrap"
               style={{ color: "var(--foreground)" }}
             >
-              NL→SQL Visualizer
+              NL2Query
             </h1>
           </div>
         </button>
@@ -111,23 +111,22 @@ export function AppHeader({
                 key={item.id}
                 type="button"
                 onClick={() => onSectionChange?.(item.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs md:text-sm transition-all cursor-pointer border whitespace-nowrap font-medium ${
-                  isActive
-                    ? "font-semibold shadow-xs"
-                    : "opacity-80 hover:opacity-100 hover:bg-[var(--surface-hover)]"
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-xs md:text-sm transition-all cursor-pointer border whitespace-nowrap font-medium ${isActive
+                  ? "font-semibold shadow-xs"
+                  : "opacity-80 hover:opacity-100 hover:bg-[var(--surface-hover)]"
+                  }`}
                 style={
                   isActive
                     ? {
-                        background: "var(--surface-subtle)",
-                        borderColor: "var(--accent)",
-                        color: "var(--foreground)",
-                      }
+                      background: "var(--surface-subtle)",
+                      borderColor: "var(--accent)",
+                      color: "var(--foreground)",
+                    }
                     : {
-                        background: "transparent",
-                        borderColor: "transparent",
-                        color: "var(--muted)",
-                      }
+                      background: "transparent",
+                      borderColor: "transparent",
+                      color: "var(--muted)",
+                    }
                 }
               >
                 {item.label}
