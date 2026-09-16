@@ -185,7 +185,7 @@ export function VisualizationPanel({
         />
       )}
       {tab === "schema" && (
-        <SchemaView schema={schema} source={mermaidSource} dark={dark} />
+        <SchemaView schema={schema} source={mermaidSource} dark={dark} theme={theme} />
       )}
       {tab === "explanation" && (
         <QueryExplanationView
@@ -380,10 +380,12 @@ function SchemaView({
   schema,
   source,
   dark,
+  theme = "slate",
 }: {
   schema: Table[];
   source: string;
   dark: boolean;
+  theme?: ThemeId;
 }) {
   return (
     <div
@@ -471,7 +473,7 @@ function SchemaView({
         <h3 className="font-bold text-base mb-2" style={{ color: "var(--foreground)" }}>
           Entity-Relationship Diagram
         </h3>
-        <ChenERDiagram schema={schema} />
+        <ChenERDiagram schema={schema} theme={theme} />
         <details className="mt-3">
           <summary className="cursor-pointer text-sm font-semibold opacity-70 hover:opacity-100" style={{ color: "var(--foreground)" }}>
             Mermaid ER source

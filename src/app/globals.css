@@ -20,6 +20,7 @@ html[data-theme="slate"],
   --accent-foreground: #09090b;
   --accent-subtle: #27272a;
   --muted: #a1a1aa;
+  --er-bg: #000000;
   --scrollbar-thumb-from: #52525b;
   --scrollbar-thumb-to: #3f3f46;
   --scrollbar-thumb-hover: #71717a;
@@ -40,6 +41,7 @@ html[data-theme="pearl"],
   --accent-foreground: #ffffff;
   --accent-subtle: #eef2ff;
   --muted: #475569;
+  --er-bg: #ffffff;
   --scrollbar-thumb-from: #818cf8;
   --scrollbar-thumb-to: #4f46e5;
   --scrollbar-thumb-hover: #4338ca;
@@ -60,6 +62,7 @@ html[data-theme="eclipse"],
   --accent-foreground: #ffffff;
   --accent-subtle: #2e1065;
   --muted: #a1a1b0;
+  --er-bg: #000000;
   --scrollbar-thumb-from: #8b5cf6;
   --scrollbar-thumb-to: #6366f1;
   --scrollbar-thumb-hover: #a78bfa;
@@ -80,6 +83,7 @@ html[data-theme="lazuli"],
   --accent-foreground: #ffffff;
   --accent-subtle: #1e1b4b;
   --muted: #94a3b8;
+  --er-bg: #000000;
   --scrollbar-thumb-from: #3b82f6;
   --scrollbar-thumb-to: #6366f1;
   --scrollbar-thumb-hover: #60a5fa;
@@ -100,6 +104,7 @@ html[data-theme="volt"],
   --accent-foreground: #000000;
   --accent-subtle: #282800;
   --muted: #ffff00;
+  --er-bg: #000000;
   --scrollbar-thumb-from: #ffff00;
   --scrollbar-thumb-to: #facc15;
   --scrollbar-thumb-hover: #fef08a;

@@ -2,9 +2,11 @@
 
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import type { Table, Column } from "@/lib/schema";
+import type { ThemeId } from "./nlSqlTypes";
 
 interface ChenERDiagramProps {
   schema: Table[];
+  theme?: ThemeId;
 }
 
 // Layout element types
@@ -696,14 +698,34 @@ function computeChenDiagramLayout(schema: Table[]): ChenDiagramData {
 // -------------------------------------------------------------
 // Interactive Chen ER Diagram Component
 // -------------------------------------------------------------
-export function ChenERDiagram({ schema }: ChenERDiagramProps) {
+export function ChenERDiagram({ schema, theme }: ChenERDiagramProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Compute layout dynamically
+  // Layout dynamic calculation
   const diagramData = useMemo(() => {
     if (!schema || schema.length === 0) return null;
     return computeChenDiagramLayout(schema);
   }, [schema]);
+
+  // Theme resolution: prop or DOM attribute
+  const [activeTheme, setActiveTheme] = useState<ThemeId>(theme ?? "slate");
+
+  useEffect(() => {
+    if (theme) {
+      setActiveTheme(theme);
+      return;
+    }
+    const updateFromDOM = () => {
+      const current = document.documentElement.getAttribute("data-theme") as ThemeId | null;
+      if (current) setActiveTheme(current);
+    };
+    updateFromDOM();
+    const observer = new MutationObserver(updateFromDOM);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class"] });
+    return () => observer.disconnect();
+  }, [theme]);
+
+  const isPearl = activeTheme === "pearl";
 
   if (!diagramData) {
     return (
@@ -715,23 +737,31 @@ export function ChenERDiagram({ schema }: ChenERDiagramProps) {
 
   return (
     <>
-      <ChenCanvas diagramData={diagramData} onExpandFullscreen={() => setIsFullscreen(true)} isModal={false} />
+      <ChenCanvas
+        diagramData={diagramData}
+        onExpandFullscreen={() => setIsFullscreen(true)}
+        isModal={false}
+        theme={activeTheme}
+      />
 
       {/* Fullscreen Modal View */}
       {isFullscreen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-md"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md"
           onClick={() => setIsFullscreen(false)}
         >
           <div
-            className="w-full max-w-7xl h-[92vh] p-4 sm:p-6 rounded-2xl border bg-zinc-950 flex flex-col gap-3 shadow-2xl overflow-hidden"
-            style={{ borderColor: "var(--border)" }}
+            className="w-full max-w-7xl h-[92vh] p-4 sm:p-6 rounded-2xl border flex flex-col gap-3 shadow-2xl overflow-hidden transition-colors duration-200"
+            style={{
+              borderColor: "var(--border)",
+              backgroundColor: isPearl ? "#ffffff" : "#000000",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-2 border-b shrink-0" style={{ borderColor: "var(--border)" }}>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
-                <h2 className="text-sm sm:text-base font-bold" style={{ color: "var(--foreground)" }}>
+                <h2 className="text-sm sm:text-base font-bold" style={{ color: isPearl ? "#0f172a" : "#f4f4f5" }}>
                   Entity-Relationship Diagram (Interactive Canvas)
                 </h2>
               </div>
@@ -740,9 +770,9 @@ export function ChenERDiagram({ schema }: ChenERDiagramProps) {
                 onClick={() => setIsFullscreen(false)}
                 className="px-3 py-1 rounded-lg text-xs font-semibold border transition-colors hover:bg-[var(--surface-hover)] cursor-pointer"
                 style={{
-                  background: "var(--panel)",
+                  background: isPearl ? "#f1f5f9" : "#18181c",
                   borderColor: "var(--border)",
-                  color: "var(--foreground)",
+                  color: isPearl ? "#0f172a" : "#f4f4f5",
                 }}
               >
                 ✕ Close
@@ -750,7 +780,7 @@ export function ChenERDiagram({ schema }: ChenERDiagramProps) {
             </div>
 
             <div className="flex-1 min-h-0">
-              <ChenCanvas diagramData={diagramData} onExpandFullscreen={() => {}} isModal={true} />
+              <ChenCanvas diagramData={diagramData} onExpandFullscreen={() => {}} isModal={true} theme={activeTheme} />
             </div>
           </div>
         </div>
@@ -766,9 +796,10 @@ interface ChenCanvasProps {
   diagramData: ChenDiagramData;
   onExpandFullscreen?: () => void;
   isModal?: boolean;
+  theme?: ThemeId;
 }
 
-function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCanvasProps) {
+function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false, theme }: ChenCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -781,6 +812,27 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
   const panStartRef = useRef<Point>({ x: 0, y: 0 });
 
   const { viewBox } = diagramData;
+
+  // Active theme tracking
+  const [activeTheme, setActiveTheme] = useState<ThemeId>(theme ?? "slate");
+
+  useEffect(() => {
+    if (theme) {
+      setActiveTheme(theme);
+      return;
+    }
+    const updateFromDOM = () => {
+      const current = document.documentElement.getAttribute("data-theme") as ThemeId | null;
+      if (current) setActiveTheme(current);
+    };
+    updateFromDOM();
+    const observer = new MutationObserver(updateFromDOM);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class"] });
+    return () => observer.disconnect();
+  }, [theme]);
+
+  const isPearl = activeTheme === "pearl";
+  const erBgColor = isPearl ? "#ffffff" : "#000000";
 
   // Reset zoom & pan to default fit
   const handleResetFit = useCallback(() => {
@@ -851,6 +903,15 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
     if (contentG) {
       contentG.removeAttribute("transform");
     }
+    // Inject background rect so exported SVG preserves theme background (white for pearl, black for others)
+    const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bgRect.setAttribute("x", String(viewBox.minX));
+    bgRect.setAttribute("y", String(viewBox.minY));
+    bgRect.setAttribute("width", String(viewBox.width));
+    bgRect.setAttribute("height", String(viewBox.height));
+    bgRect.setAttribute("fill", erBgColor);
+    clone.insertBefore(bgRect, clone.firstChild);
+
     const svgData = new XMLSerializer().serializeToString(clone);
     const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -878,7 +939,7 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
       canvas.width = Math.max(1400, Math.round(viewBox.width * 1.5));
       canvas.height = Math.max(800, Math.round(viewBox.height * 1.5));
       if (ctx) {
-        ctx.fillStyle = "#09090b";
+        ctx.fillStyle = erBgColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         const pngUrl = canvas.toDataURL("image/png");
@@ -1036,10 +1097,12 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onDoubleClick={handleResetFit}
-        className={`w-full relative overflow-hidden rounded-xl border border-[var(--border)] bg-zinc-950/70 select-none ${
+        className={`w-full relative overflow-hidden rounded-xl border select-none transition-colors duration-200 ${
           isModal ? "flex-1 min-h-0" : "h-[480px] min-h-[440px]"
         }`}
         style={{
+          borderColor: "var(--border)",
+          backgroundColor: erBgColor,
           cursor: isDragging ? "grabbing" : "grab",
         }}
       >
@@ -1048,10 +1111,13 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
           viewBox={`${viewBox.minX} ${viewBox.minY} ${viewBox.width} ${viewBox.height}`}
           className="w-full h-full"
           xmlns="http://www.w3.org/2000/svg"
+          style={{
+            backgroundColor: erBgColor,
+          }}
         >
           <defs>
             <filter id="chen-shadow" x="-15%" y="-15%" width="130%" height="130%">
-              <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000000" floodOpacity="0.6" />
+              <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000000" floodOpacity={isPearl ? "0.18" : "0.6"} />
             </filter>
             <linearGradient id="entity-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#1e3a8a" />
@@ -1083,7 +1149,7 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
                 y1={attr.lineStart.y}
                 x2={attr.x}
                 y2={attr.lineEnd.y}
-                stroke="#475569"
+                stroke={isPearl ? "#64748b" : "#475569"}
                 strokeWidth="2"
                 strokeLinecap="round"
               />
@@ -1097,7 +1163,7 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
                   y1={rel.fromPoint.y}
                   x2={rel.x}
                   y2={rel.y}
-                  stroke="#64748b"
+                  stroke={isPearl ? "#475569" : "#64748b"}
                   strokeWidth="2.2"
                 />
                 <line
@@ -1105,29 +1171,29 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
                   y1={rel.y}
                   x2={rel.toPoint.x}
                   y2={rel.toPoint.y}
-                  stroke="#64748b"
+                  stroke={isPearl ? "#475569" : "#64748b"}
                   strokeWidth="2.2"
                 />
                 {/* Cardinality Labels */}
                 <text
                   x={rel.cardFromPoint.x}
                   y={rel.cardFromPoint.y}
-                  fill="#60a5fa"
+                  fill={isPearl ? "#2563eb" : "#60a5fa"}
                   fontSize="15"
                   fontWeight="bold"
                   textAnchor="middle"
-                  style={{ textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}
+                  style={{ textShadow: isPearl ? "0 1px 2px rgba(255,255,255,0.9)" : "0 1px 3px rgba(0,0,0,0.8)" }}
                 >
                   {rel.cardinalityFrom}
                 </text>
                 <text
                   x={rel.cardToPoint.x}
                   y={rel.cardToPoint.y}
-                  fill="#60a5fa"
+                  fill={isPearl ? "#2563eb" : "#60a5fa"}
                   fontSize="15"
                   fontWeight="bold"
                   textAnchor="middle"
-                  style={{ textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}
+                  style={{ textShadow: isPearl ? "0 1px 2px rgba(255,255,255,0.9)" : "0 1px 3px rgba(0,0,0,0.8)" }}
                 >
                   {rel.cardinalityTo}
                 </text>
@@ -1218,7 +1284,13 @@ function ChenCanvas({ diagramData, onExpandFullscreen, isModal = false }: ChenCa
         </svg>
 
         {/* Floating Canvas Navigation Hint */}
-        <div className="absolute bottom-2.5 right-3 pointer-events-none text-[10px] text-zinc-400/80 bg-zinc-900/80 px-2 py-1 rounded-md border border-zinc-800/80 backdrop-blur-xs flex items-center gap-1.5">
+        <div
+          className={`absolute bottom-2.5 right-3 pointer-events-none text-[10px] px-2 py-1 rounded-md border backdrop-blur-xs flex items-center gap-1.5 transition-colors duration-200 ${
+            isPearl
+              ? "text-zinc-600 bg-white/90 border-zinc-300 shadow-xs"
+              : "text-zinc-400/80 bg-zinc-950/80 border-zinc-800/80"
+          }`}
+        >
           <span>Scroll to zoom</span>
           <span>•</span>
           <span>Drag to pan</span>
