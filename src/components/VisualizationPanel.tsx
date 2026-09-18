@@ -180,7 +180,18 @@ export function VisualizationPanel({
           hasExecuted={hasExecuted}
         />
       )}
-      {tab === "theory" && <Theory />}
+      {tab === "theory" && (
+        <Theory
+          current={current}
+          steps={steps}
+          activeStep={activeStep}
+          onStepChange={onStepChange}
+          sql={sql}
+          schema={schema}
+          explanation={explanation}
+          hasExecuted={hasExecuted}
+        />
+      )}
     </section>
   );
 }

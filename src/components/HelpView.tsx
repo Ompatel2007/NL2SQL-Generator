@@ -1,10 +1,102 @@
 "use client";
 
+import React, { useState } from "react";
+
 interface HelpViewProps {
-  onBackToWorkspace: () => void;
+  onBackToWorkspace?: () => void;
+}
+
+// Subcard component inside each manual section
+function HelpSubcard({
+  title,
+  content,
+  highlight = false,
+  defaultOpen = true,
+}: {
+  title: string;
+  content: string;
+  highlight?: boolean;
+  defaultOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div
+      className="rounded-lg border transition-all overflow-hidden"
+      style={{
+        borderColor: isOpen ? (highlight ? "rgba(16, 185, 129, 0.4)" : "var(--accent)") : "var(--border)",
+        background: "var(--surface-subtle)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        className="w-full p-3.5 flex items-center justify-between text-left cursor-pointer transition-colors hover:opacity-90 focus:outline-none"
+        style={{
+          background: isOpen
+            ? highlight
+              ? "rgba(16, 185, 129, 0.08)"
+              : "rgba(var(--accent-rgb, 99, 102, 241), 0.08)"
+            : "transparent",
+        }}
+      >
+        <span
+          className={`font-semibold text-xs md:text-sm uppercase tracking-wider ${
+            highlight ? "text-emerald-400" : "text-[var(--accent)]"
+          }`}
+        >
+          {title}
+        </span>
+        <div className="flex items-center gap-1.5 text-xs opacity-75 font-mono">
+          <span className="hidden sm:inline font-sans">{isOpen ? "Hide" : "Click to view"}</span>
+          <svg
+            className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+      {isOpen && (
+        <div className="p-4 border-t text-sm md:text-base leading-relaxed opacity-90" style={{ borderColor: "var(--border)" }}>
+          <p>{content}</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function HelpView({ onBackToWorkspace }: HelpViewProps) {
+  const [quickStartOpen, setQuickStartOpen] = useState(true);
+  const [openCards, setOpenCards] = useState<Record<number, boolean>>({
+    1: true,
+    2: true,
+  });
+
+  const toggleCard = (id: number) => {
+    setOpenCards((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const expandAll = () => {
+    const all: Record<number, boolean> = {};
+    for (let i = 1; i <= 19; i++) {
+      all[i] = true;
+    }
+    setOpenCards(all);
+    setQuickStartOpen(true);
+  };
+
+  const collapseAll = () => {
+    setOpenCards({});
+    setQuickStartOpen(false);
+  };
+
   const quickStartSteps = [
     {
       step: "Step 1",
@@ -38,8 +130,8 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
     },
     {
       step: "Step 7",
-      title: "Use Report if required",
-      desc: "Click the 'Report' button above the Final Result table to download a complete execution summary in Markdown format.",
+      title: "Use Download / Report",
+      desc: "Use the top navigation 'Download' section or the 'Report' button above the Final Result table to download execution results in PDF, DOCX, CSV, or SVG.",
     },
   ];
 
@@ -47,17 +139,17 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
     {
       id: 1,
       title: "Getting Started",
-      whatItDoes: "Provides an interactive three-panel web application for learning and visualizing relational database execution and natural language to SQL translation.",
-      whatToDo: "Upon opening the application, the default landing view is the Workspace. You can resize the left and right panels by dragging the vertical resizer divider bars or clicking their arrows to collapse or expand them.",
-      controls: "Main navigation bar at the top ([Workspace], [Learn], [Help], [Developed By]), Theme dropdown on the far right, and panel resize sliders.",
+      whatItDoes: "Provides an interactive responsive workspace for learning and visualizing relational database execution and natural language to SQL translation.",
+      whatToDo: "Upon opening the application, the default landing view is the Workspace. You can resize the left panel by dragging the vertical resizer divider bar or clicking its arrow to collapse or expand it.",
+      controls: "Main navigation bar at the top ([Workspace], [Download], [Learn], [Help], [Developed By]), Theme dropdown on the far right, and panel resize slider.",
       processing: "The app initializes an in-memory relational database schema buffer populated with initial sample tables and records.",
-      expectedOutput: "A responsive three-column workspace ready to accept natural language prompts or direct SQL code.",
+      expectedOutput: "A responsive workspace ready to accept natural language prompts or direct SQL code, with the central canvas spanning full width.",
     },
     {
       id: 2,
       title: "Choosing a Dataset",
       whatItDoes: "Switches the active database catalog between different domains (E-Commerce, University, Hospital, Library) or custom user-created datasets.",
-      whatToDo: "Click the dataset selector in the left panel to choose any domain, create a new custom dataset, or import datasets from your computer (.csv, .json, .tsv, .sql).",
+      whatToDo: "Click the dataset selector in the left panel to choose any domain, create a new custom dataset, or import datasets from your computer (.csv, .json, .tsv, .sql, .db).",
       controls: "The 'Choose a dataset' dropdown box located at the top-left of the Input Panel, including '+ Create New Dataset...' and 'Import Dataset...'.",
       processing: "The relational database engine clears the current buffer, loads the chosen schema relations, indexes, and initial records, and updates the ER diagram and sample queries.",
       expectedOutput: "The input sample queries and center Schema/ER diagram immediately update to reflect the newly selected dataset domain.",
@@ -146,19 +238,19 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
     {
       id: 12,
       title: "Understanding Theory / Relational Foundations",
-      whatItDoes: "Provides academic documentation on relational operators, SQL sublanguages, and database engine theory.",
+      whatItDoes: "Provides query-specific execution theory, big-O complexity upper bounds, relational algebra equivalences, and buffer page models.",
       whatToDo: "Click the 'Theory' tab at the top of the center canvas.",
-      controls: "The 'Theory' tab button.",
-      processing: "Renders academic summaries covering DQL, DML, DDL, selection, projection, joins, aggregation, and ACID transaction guarantees.",
-      expectedOutput: "A textbook-style reference panel ideal for study and academic demonstrations.",
+      controls: "The 'Theory' tab button in the center panel.",
+      processing: "Calculates stage-specific algorithmic complexities, relational algebra operators, and disk I/O slotted block access models for the active executed statement.",
+      expectedOutput: "Execution Theory & Insights cards tailored dynamically to the executed query and active operator stage.",
     },
     {
       id: 13,
       title: "Understanding Complexity Information",
       whatItDoes: "Displays algorithmic time complexity metrics for database operations (e.g. O(N) scans, O(N × M) nested joins, O(N log N) external sorts).",
-      whatToDo: "Look at the right sidebar ('Execution Theory & Insights') while inspecting any pipeline step.",
-      controls: "The operation details card in the Explanation Panel.",
-      processing: "Maps the active operator to its operational notes and big-O computational upper bound.",
+      whatToDo: "Click the 'Theory' tab in the central canvas while inspecting any pipeline step.",
+      controls: "The 'Theory' tab and stage selection pills.",
+      processing: "Maps the active operator to its operational notes and big-O computational upper bounds for Best, Average, and Worst cases.",
       expectedOutput: "Algorithmic expressions and operational complexity notes explaining why specific database operators perform with certain efficiencies.",
     },
     {
@@ -181,37 +273,37 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
     },
     {
       id: 16,
-      title: "Exporting the Dataset",
-      whatItDoes: "Exports the active relational database schema and data as standard SQL files or CSV tables.",
-      whatToDo: "In the right-hand Explanation Panel, find the 'Export Dataset' section at the bottom.",
-      controls: "'Export SQL Script (.sql)' button and individual table CSV buttons or 'Export All' button.",
-      processing: "Generates a downloadable file containing CREATE TABLE / INSERT INTO statements or RFC 4180 compliant CSV tables.",
-      expectedOutput: "A file download prompt saving `<dataset>_schema.sql` or `<table_name>.csv` to your computer.",
+      title: "Importing Datasets (.csv, .json, .sql, .db)",
+      whatItDoes: "Imports local database files or tabular data (.csv, .tsv, .json, .sql, and SQLite .db binaries) into the active workspace.",
+      whatToDo: "Click 'Import Dataset...' from the dataset dropdown or '+ Import' in the left panel.",
+      controls: "The Import Dataset Modal with drag-and-drop file upload zone.",
+      processing: "Parses CSV headers, JSON records, SQL dumps, or binary SQLite .db tables using sql.js in the browser.",
+      expectedOutput: "The uploaded tables, records, and schema catalog are immediately registered and active in the database.",
     },
     {
       id: 17,
-      title: "Using the Report Button",
-      whatItDoes: "Generates an execution report summarizing the query, error logs, full pipeline step breakdown, and final result table.",
-      whatToDo: "After running any query, locate the 'Report' button above the Final Result table and click it.",
-      controls: "The 'Report' button next to the 'CSV' button above the Final Result grid.",
-      processing: "Compiles a formatted Markdown document (`report.md`) detailing query metadata, step-by-step pipeline stages, row counts, and output tables.",
-      expectedOutput: "A downloaded `report.md` file suitable for project submissions, debugging, and academic documentation.",
+      title: "Exporting Reports & Datasets (Download View)",
+      whatItDoes: "Provides comprehensive export capabilities for execution reports, result tables, ER diagrams, and complete session history.",
+      whatToDo: "Click 'Download' in the top navigation bar to open the dedicated Download Center.",
+      controls: "The 'Download' navigation tab and format buttons (PDF, DOCX, CSV, Excel, MD, JSON, TSV, SQL, SQLite .db, SVG, PNG).",
+      processing: "Generates formatted PDF/Word reports with embedded ER diagrams, converts tables to spreadsheets or CSV, and packages query logs.",
+      expectedOutput: "Instant file download in your selected format with complete execution metadata.",
     },
     {
       id: 18,
-      title: "Switching Day/Night Mode",
+      title: "Switching Day/Night & Themes",
       whatItDoes: "Changes the color palette and dark/light mode of the application.",
       whatToDo: "Click the 'Theme' button in the top-right corner of the top navigation bar and select a theme.",
-      controls: "The 'Theme' dropdown menu in the header (Slate, Pearl).",
+      controls: "The 'Theme' dropdown menu in the header (Slate, Pearl, etc.).",
       processing: "Updates CSS custom variables (`data-theme` attribute on the root element) and persists your preference in `localStorage`.",
-      expectedOutput: "The interface updates its appearance immediately, with 'Pearl' providing light mode and 'Slate' providing the default dark monochrome style.",
+      expectedOutput: "The interface updates its appearance immediately, with 'Pearl' providing light mode and 'Slate' providing the dark theme.",
     },
     {
       id: 19,
-      title: "Handling Errors",
+      title: "Handling Errors & Constraint Violations",
       whatItDoes: "Identifies and highlights syntax mistakes, non-existent table/column names, or constraint violations.",
-      whatToDo: "If a query fails, read the red error alert box displayed under the SQL editor and in the Explanation Panel.",
-      controls: "Red error banners in the Input Panel and Explanation Panel.",
+      whatToDo: "If a query fails, read the red error alert box displayed under the SQL editor and in the canvas Theory tab.",
+      controls: "Red error banners in the Input Panel and Theory tab.",
       processing: "The engine catches the exception, halts execution safely, leaves database buffers untainted, and explains which identifier was invalid.",
       expectedOutput: "Clear actionable guidance telling you whether a column was not found, a table name was misspelled, or SQL grammar was malformed.",
     },
@@ -219,7 +311,7 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
 
   return (
     <main
-      className="flex-1 flex flex-col p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12 overflow-y-auto overflow-x-hidden w-full max-w-none leading-relaxed"
+      className="flex-1 min-h-0 flex flex-col p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12 overflow-y-auto overflow-x-hidden w-full max-w-none leading-relaxed"
       style={{ color: "var(--foreground)" }}
       aria-label="Help and User Manual"
     >
@@ -255,144 +347,243 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onBackToWorkspace}
-          className="px-4 py-2.5 rounded-lg text-sm md:text-base font-semibold border transition-all cursor-pointer shadow-xs hover:opacity-90 flex items-center gap-2"
-          style={{
-            background: "var(--surface-subtle)",
-            borderColor: "var(--border)",
-            color: "var(--foreground)",
-          }}
-        >
-          <svg
-            className="w-4 h-4 opacity-80"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={expandAll}
+            className="px-3 py-2 rounded-lg text-xs md:text-sm font-semibold border transition-all cursor-pointer hover:opacity-90"
+            style={{
+              background: "var(--surface-subtle)",
+              borderColor: "var(--border)",
+              color: "var(--foreground)",
+            }}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          <span>Back to Workspace</span>
-        </button>
+            Expand All
+          </button>
+          <button
+            type="button"
+            onClick={collapseAll}
+            className="px-3 py-2 rounded-lg text-xs md:text-sm font-semibold border transition-all cursor-pointer hover:opacity-90"
+            style={{
+              background: "var(--surface-subtle)",
+              borderColor: "var(--border)",
+              color: "var(--foreground)",
+            }}
+          >
+            Collapse All
+          </button>
+        </div>
       </div>
 
-      {/* QUICK START SECTION */}
+      {/* QUICK START SECTION (Collapsible Card Tab) */}
       <section
-        className="panel p-6 rounded-xl border space-y-4 mb-10 shadow-sm"
+        className="panel rounded-xl border transition-all overflow-hidden mb-8 shadow-xs"
         style={{
           background: "var(--panel)",
-          borderColor: "var(--accent)",
+          borderColor: quickStartOpen ? "var(--accent)" : "var(--border)",
         }}
       >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold px-3 py-1 rounded bg-[var(--accent)] text-[var(--accent-foreground)] uppercase tracking-wider">
-            Quick Start
-          </span>
-          <h2 className="text-lg md:text-xl font-bold" style={{ color: "var(--foreground)" }}>
-            7-Step Getting Started Walkthrough
-          </h2>
-        </div>
-        <p className="text-sm md:text-base opacity-85 leading-relaxed">
-          Follow these simple steps to perform your first natural language query and inspect its relational execution:
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-2">
-          {quickStartSteps.map((item) => (
-            <div
-              key={item.step}
-              className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5"
-              style={{ borderColor: "var(--border)" }}
+        <button
+          type="button"
+          onClick={() => setQuickStartOpen(!quickStartOpen)}
+          aria-expanded={quickStartOpen}
+          className="w-full p-5 flex items-center justify-between text-left cursor-pointer transition-colors hover:bg-[var(--surface-subtle)] focus:outline-none"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold px-3 py-1 rounded bg-[var(--accent)] text-[var(--accent-foreground)] uppercase tracking-wider">
+              Quick Start
+            </span>
+            <h2 className="text-base md:text-xl font-bold" style={{ color: "var(--foreground)" }}>
+              7-Step Getting Started Walkthrough
+            </h2>
+          </div>
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold shrink-0 transition-colors"
+            style={{
+              background: quickStartOpen ? "var(--accent)" : "var(--surface-subtle)",
+              color: quickStartOpen ? "var(--accent-foreground)" : "var(--foreground)",
+              borderColor: "var(--border)",
+            }}
+          >
+            <span className="hidden sm:inline font-sans">
+              {quickStartOpen ? "Collapse" : "Click to view"}
+            </span>
+            <svg
+              className={`w-4 h-4 transition-transform duration-200 ${
+                quickStartOpen ? "rotate-180" : ""
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-mono font-bold px-2.5 py-0.5 rounded bg-[var(--panel)] text-[var(--accent)] border border-[var(--border)]">
-                  {item.step}
-                </span>
-                <h3 className="text-sm md:text-base font-bold" style={{ color: "var(--foreground)" }}>
-                  {item.title}
-                </h3>
-              </div>
-              <p className="text-sm opacity-85 leading-relaxed pl-1">
-                {item.desc}
-              </p>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </div>
+        </button>
+
+        {quickStartOpen && (
+          <div className="p-6 border-t space-y-4" style={{ borderColor: "var(--border)" }}>
+            <p className="text-sm md:text-base opacity-85 leading-relaxed">
+              Follow these simple steps to perform your first natural language query and inspect its relational execution:
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-2">
+              {quickStartSteps.map((item) => (
+                <div
+                  key={item.step}
+                  className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[var(--panel)] text-[var(--accent)] border border-[var(--border)]">
+                      {item.step}
+                    </span>
+                    <h3 className="text-sm font-bold truncate" style={{ color: "var(--foreground)" }}>
+                      {item.title}
+                    </h3>
+                  </div>
+                  <p className="text-xs md:text-sm opacity-85 leading-relaxed pl-0.5">
+                    {item.desc}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </section>
 
-      {/* DETAILED USER MANUAL SECTIONS 1 - 19 */}
-      <div className="space-y-6">
-        <div>
+      {/* DETAILED USER MANUAL SECTIONS 1 - 19 (Collapsible Card Tabs Matching Pic) */}
+      <div className="space-y-4">
+        <div className="pb-2">
           <h2 className="text-lg md:text-2xl font-bold tracking-tight" style={{ color: "var(--foreground)" }}>
             Detailed Feature Manual (Sections 1 — 19)
           </h2>
           <p className="text-sm md:text-base opacity-80 mt-1" style={{ color: "var(--muted)" }}>
-            Detailed operation rules, input requirements, button names, processing lifecycles, and expected outputs.
+            Detailed operation rules, input requirements, button names, processing lifecycles, and expected outputs. Click any card to expand or collapse.
           </p>
         </div>
 
-        {manualSections.map((sec) => (
-          <section
-            key={sec.id}
-            className="panel p-6 rounded-xl border space-y-4"
-            style={{
-              background: "var(--panel)",
-              borderColor: "var(--border)",
-            }}
-          >
-            <h3
-              className="text-base md:text-lg font-bold text-[var(--foreground)] border-b pb-2.5 flex items-center gap-2"
-              style={{ borderColor: "var(--border)" }}
+        {manualSections.map((sec) => {
+          const isOpen = !!openCards[sec.id];
+          return (
+            <section
+              key={sec.id}
+              className="panel rounded-xl border transition-all duration-200 overflow-hidden shadow-xs"
+              style={{
+                background: "var(--panel)",
+                borderColor: isOpen ? "var(--accent)" : "var(--border)",
+              }}
             >
-              <span className="text-sm font-mono px-2.5 py-1 rounded bg-[var(--surface-subtle)] text-[var(--accent)] border border-[var(--border)]">
-                {sec.id}
-              </span>
-              <span>{sec.title}</span>
-            </h3>
+              {/* Header Button: Clicking toggles collapse/expand tab */}
+              <button
+                type="button"
+                onClick={() => toggleCard(sec.id)}
+                aria-expanded={isOpen}
+                className="w-full p-4 md:p-5 flex items-center justify-between text-left cursor-pointer transition-colors hover:bg-[var(--surface-subtle)] focus:outline-none"
+              >
+                <div className="flex items-center gap-3 md:gap-4 pr-3 min-w-0">
+                  <span
+                    className="text-xs md:text-sm font-mono font-bold px-2.5 py-1 rounded shrink-0 border"
+                    style={{
+                      background: isOpen ? "var(--accent)" : "var(--surface-subtle)",
+                      color: isOpen ? "var(--accent-foreground)" : "var(--accent)",
+                      borderColor: "var(--border)",
+                    }}
+                  >
+                    {sec.id}
+                  </span>
+                  <div className="min-w-0">
+                    <h3
+                      className="text-base md:text-lg font-bold tracking-tight truncate"
+                      style={{ color: "var(--foreground)" }}
+                    >
+                      {sec.title}
+                    </h3>
+                    {!isOpen && (
+                      <p
+                        className="text-xs md:text-sm opacity-70 truncate mt-0.5"
+                        style={{ color: "var(--muted)" }}
+                      >
+                        {sec.whatItDoes}
+                      </p>
+                    )}
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm md:text-base pt-1">
-              <div className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5" style={{ borderColor: "var(--border)" }}>
-                <span className="font-semibold text-sm text-[var(--accent)] uppercase tracking-wider block">
-                  What it does:
-                </span>
-                <p className="opacity-90 leading-relaxed">{sec.whatItDoes}</p>
-              </div>
+                {/* Indicator icon showing you have to click to view more details */}
+                <div
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold shrink-0 transition-colors"
+                  style={{
+                    background: isOpen ? "var(--accent)" : "var(--surface-subtle)",
+                    color: isOpen ? "var(--accent-foreground)" : "var(--foreground)",
+                    borderColor: "var(--border)",
+                  }}
+                  title={isOpen ? "Click to collapse card" : "Click to view more details"}
+                >
+                  <span className="hidden sm:inline font-sans">
+                    {isOpen ? "Collapse" : "Click to view"}
+                  </span>
+                  <svg
+                    className={`w-4 h-4 transition-transform duration-200 ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </button>
 
-              <div className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5" style={{ borderColor: "var(--border)" }}>
-                <span className="font-semibold text-sm text-[var(--accent)] uppercase tracking-wider block">
-                  What the user needs to enter/do:
-                </span>
-                <p className="opacity-90 leading-relaxed">{sec.whatToDo}</p>
-              </div>
+              {/* Expanded Content: 5 Detailed Subcards matching the picture */}
+              {isOpen && (
+                <div
+                  className="p-5 md:p-6 border-t space-y-4"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <HelpSubcard
+                      title="What it does:"
+                      content={sec.whatItDoes}
+                    />
 
-              <div className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5" style={{ borderColor: "var(--border)" }}>
-                <span className="font-semibold text-sm text-[var(--accent)] uppercase tracking-wider block">
-                  Which button / control to use:
-                </span>
-                <p className="opacity-90 leading-relaxed">{sec.controls}</p>
-              </div>
+                    <HelpSubcard
+                      title="What the user needs to enter/do:"
+                      content={sec.whatToDo}
+                    />
 
-              <div className="p-4 rounded-lg border bg-[var(--surface-subtle)] space-y-1.5" style={{ borderColor: "var(--border)" }}>
-                <span className="font-semibold text-sm text-[var(--accent)] uppercase tracking-wider block">
-                  What happens during processing:
-                </span>
-                <p className="opacity-90 leading-relaxed">{sec.processing}</p>
-              </div>
-            </div>
+                    <HelpSubcard
+                      title="Which button / control to use:"
+                      content={sec.controls}
+                    />
 
-            <div className="p-4 rounded-lg border bg-[var(--surface-subtle)] text-sm md:text-base space-y-1.5" style={{ borderColor: "var(--border)" }}>
-              <span className="font-semibold text-sm text-emerald-400 uppercase tracking-wider block">
-                What output the user should expect:
-              </span>
-              <p className="opacity-90 leading-relaxed">{sec.expectedOutput}</p>
-            </div>
-          </section>
-        ))}
+                    <HelpSubcard
+                      title="What happens during processing:"
+                      content={sec.processing}
+                    />
+                  </div>
+
+                  <HelpSubcard
+                    title="What output the user should expect:"
+                    content={sec.expectedOutput}
+                    highlight={true}
+                  />
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
     </main>
   );

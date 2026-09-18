@@ -3,7 +3,7 @@
 import Image from "next/image";
 
 interface DevelopedByViewProps {
-  onBackToWorkspace: () => void;
+  onBackToWorkspace?: () => void;
 }
 
 export function DevelopedByView({ onBackToWorkspace }: DevelopedByViewProps) {
@@ -29,11 +29,12 @@ export function DevelopedByView({ onBackToWorkspace }: DevelopedByViewProps) {
   ];
 
   return (
-    <main
-      className="flex-1 flex flex-col p-4 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full select-none"
-      style={{ color: "var(--foreground)" }}
-      aria-label="Developed By section"
-    >
+    <div className="flex-1 min-h-0 overflow-y-auto w-full">
+      <main
+        className="max-w-5xl mx-auto w-full p-4 md:p-8 flex flex-col select-none"
+        style={{ color: "var(--foreground)" }}
+        aria-label="Developed By section"
+      >
       {/* Top Header */}
       <div
         className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-8 border-b"
@@ -47,32 +48,6 @@ export function DevelopedByView({ onBackToWorkspace }: DevelopedByViewProps) {
             Developed By
           </h1>
         </div>
-
-        <button
-          type="button"
-          onClick={onBackToWorkspace}
-          className="px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold border transition-all cursor-pointer shadow-xs hover:opacity-90 flex items-center gap-2"
-          style={{
-            background: "var(--surface-subtle)",
-            borderColor: "var(--border)",
-            color: "var(--foreground)",
-          }}
-        >
-          <svg
-            className="w-4 h-4 opacity-80"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          <span>Back to Workspace</span>
-        </button>
       </div>
 
       {/* Exactly Three Team Member Cards */}
@@ -207,5 +182,6 @@ export function DevelopedByView({ onBackToWorkspace }: DevelopedByViewProps) {
         </div>
       </div>
     </main>
+    </div>
   );
 }

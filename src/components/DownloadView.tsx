@@ -30,7 +30,7 @@ import {
 } from "@/lib/erDiagramExport";
 
 interface DownloadViewProps {
-  onBackToWorkspace: () => void;
+  onBackToWorkspace?: () => void;
   dataset: Dataset;
   activeSchema: Table[];
   lastExecutionData: ReportExecutionData | null;
@@ -244,10 +244,11 @@ export function DownloadView({
   const totalColsResult = columns.length > 0 ? columns.length : (activeSchema[0]?.columns?.length ?? 0);
 
   return (
-    <div
-      className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-6 animate-in fade-in duration-150"
-      style={{ color: "var(--foreground)" }}
-    >
+    <div className="flex-1 min-h-0 overflow-y-auto w-full">
+      <div
+        className="p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-6 animate-in fade-in duration-150"
+        style={{ color: "var(--foreground)" }}
+      >
       {/* Toast Feedback Notification */}
       {statusMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl border bg-emerald-600 text-white font-medium text-xs sm:text-sm animate-in slide-in-from-bottom-5 duration-200">
@@ -293,22 +294,6 @@ export function DownloadView({
             </p>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={onBackToWorkspace}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all cursor-pointer shadow-xs hover:opacity-90 self-start sm:self-auto shrink-0"
-          style={{
-            background: "var(--surface-subtle)",
-            borderColor: "var(--border)",
-            color: "var(--foreground)",
-          }}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span>Back to Workspace</span>
-        </button>
       </div>
 
       {/* Live System Context Overview Bar */}
@@ -808,6 +793,7 @@ export function DownloadView({
           ))}
         </div>
       </div>
+    </div>
     </div>
   );
 }

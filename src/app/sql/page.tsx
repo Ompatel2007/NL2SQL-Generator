@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader, type NavSection } from "@/components/AppHeader";
-import { ExplanationPanel } from "@/components/ExplanationPanel";
 import { InputPanel } from "@/components/InputPanel";
 import { DatasetModal } from "@/components/DatasetModal";
 import { ImportDatasetModal } from "@/components/ImportDatasetModal";
@@ -88,7 +87,7 @@ export default function Home() {
 
   // Modals & Panels UI state
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"input" | "canvas" | "tools">("canvas");
+  const [mobileTab, setMobileTab] = useState<"input" | "canvas">("canvas");
 
   // Dynamic Central Panel Height & Window Height Measurement
   const centerPanelRef = useRef<HTMLDivElement>(null);
@@ -600,13 +599,10 @@ export default function Home() {
   );
   const current = steps[activeStep];
 
-  // Interactive Panel Resizer Sliders state
+  // Interactive Panel Resizer Sliders state (Left panel)
   const [leftWidth, setLeftWidth] = useState(320);
-  const [rightWidth, setRightWidth] = useState(340);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isResizingLeft, setIsResizingLeft] = useState(false);
-  const [isResizingRight, setIsResizingRight] = useState(false);
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
@@ -619,27 +615,17 @@ export default function Home() {
           setLeftCollapsed(false);
           setLeftWidth(Math.min(rawWidth, 600));
         }
-      } else if (isResizingRight) {
-        const rawWidth = window.innerWidth - e.clientX - 16;
-        if (rawWidth < 230) {
-          setRightCollapsed(true);
-          setRightWidth(230);
-        } else {
-          setRightCollapsed(false);
-          setRightWidth(Math.min(rawWidth, 600));
-        }
       }
     },
-    [isResizingLeft, isResizingRight],
+    [isResizingLeft],
   );
 
   const handleMouseUp = useCallback(() => {
     setIsResizingLeft(false);
-    setIsResizingRight(false);
   }, []);
 
   useEffect(() => {
-    if (isResizingLeft || isResizingRight) {
+    if (isResizingLeft) {
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
       return () => {
@@ -647,11 +633,11 @@ export default function Home() {
         window.removeEventListener("mouseup", handleMouseUp);
       };
     }
-  }, [isResizingLeft, isResizingRight, handleMouseMove, handleMouseUp]);
+  }, [isResizingLeft, handleMouseMove, handleMouseUp]);
 
   return (
-    <div className="min-h-screen flex flex-col pb-16 lg:pb-0 select-none">
-      {/* Top Bar with Navigation & Theme Selector */}
+    <div className="h-screen flex flex-col overflow-hidden pb-16 lg:pb-0 select-none">
+      {/* Top Bar with Navigation & Theme Selector (Permanently Fixed & Static) */}
       <AppHeader
         theme={theme}
         onThemeChange={handleThemeChange}
@@ -659,174 +645,129 @@ export default function Home() {
         onSectionChange={setActiveSection}
       />
 
-      {/* Main Workspace (Kept mounted to preserve database, queries, and layout state) */}
-      <main
-        className={`flex-1 flex flex-col lg:flex-row items-start gap-0 p-4 relative ${
-          activeSection === "workspace" ? "flex" : "hidden"
-        }`}
-      >
-        {/* Left Sidebar: Input Panel */}
-        <div
-          style={{ width: leftCollapsed ? "0px" : `${leftWidth}px` }}
-          className={`flex flex-col shrink-0 transition-[width] duration-150 ease-out overflow-hidden ${
-            mobileTab !== "input" ? "hidden lg:flex" : "flex w-full"
+      {/* Primary Content Viewport Container */}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden w-full relative">
+        {/* Main Workspace (Kept mounted to preserve database, queries, and layout state) */}
+        <main
+          className={`flex-1 min-h-0 flex flex-col lg:flex-row items-start gap-0 p-4 relative overflow-y-auto ${
+            activeSection === "workspace" ? "flex" : "hidden"
           }`}
         >
-          <div className="pr-2 h-full flex flex-col">
-            <InputPanel
-              datasets={allDatasets}
-              selectedDatasetId={selectedDatasetId}
-              activeSchema={activeSchema}
-              onDatasetChange={changeDataset}
-              onOpenCreateModal={handleOpenCreateModal}
-              onOpenImportModal={() => setIsImportModalOpen(true)}
-              onEditDataset={handleOpenEditModal}
-              onDeleteDataset={handleDeleteDataset}
-              onOpenGuide={() => setIsGuideModalOpen(true)}
-              examples={selectedDataset.examples}
-              nlInput={nlInput}
-              onNlInputChange={setNlInput}
-              onTranslate={() => translateNL()}
-              nlInfo={nlInfo}
+          {/* Left Sidebar: Input Panel */}
+          <div
+            style={{ width: leftCollapsed ? "0px" : `${leftWidth}px` }}
+            className={`flex flex-col shrink-0 transition-[width] duration-150 ease-out overflow-hidden ${
+              mobileTab !== "input" ? "hidden lg:flex" : "flex w-full"
+            }`}
+          >
+            <div className="pr-2 h-full flex flex-col">
+              <InputPanel
+                datasets={allDatasets}
+                selectedDatasetId={selectedDatasetId}
+                activeSchema={activeSchema}
+                onDatasetChange={changeDataset}
+                onOpenCreateModal={handleOpenCreateModal}
+                onOpenImportModal={() => setIsImportModalOpen(true)}
+                onEditDataset={handleOpenEditModal}
+                onDeleteDataset={handleDeleteDataset}
+                onOpenGuide={() => setIsGuideModalOpen(true)}
+                examples={selectedDataset.examples}
+                nlInput={nlInput}
+                onNlInputChange={setNlInput}
+                onTranslate={() => translateNL()}
+                nlInfo={nlInfo}
+                sql={sql}
+                onSqlChange={(newSql) => {
+                  setSql(newSql);
+                  if (error) setError(undefined);
+                }}
+                onRunQuery={() => runQuery()}
+                onExampleSelect={selectExample}
+                onResetDatabase={resetDatabase}
+                error={error}
+                history={history}
+                onSelectHistory={selectHistory}
+                onVoiceTranslateAndRun={(params) => translateNL(params)}
+                isTranslating={isTranslating}
+                voiceFeedback={voiceFeedback}
+                onToggleVoiceFeedback={setVoiceFeedback}
+                theme={theme}
+                minPanelHeight={sidePanelMinHeight}
+                maxPanelHeight={sidePanelMaxHeight}
+                panelHeight={sidePanelHeight}
+              />
+            </div>
+          </div>
+
+          {/* Resizer Slider Handle 1: Between Left and Center */}
+          <div
+            onMouseDown={() => setIsResizingLeft(true)}
+            className="hidden lg:flex w-3 hover:w-4 items-center justify-center cursor-col-resize group relative z-10 shrink-0 transition-all self-stretch"
+            title="Drag to resize panel or click arrow to collapse"
+          >
+            <div className="w-1 h-12 rounded-full bg-zinc-600/30 group-hover:bg-[var(--accent)] transition-colors flex items-center justify-center">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLeftCollapsed((prev) => !prev);
+                }}
+                title={leftCollapsed ? "Expand Left Panel" : "Collapse Left Panel"}
+                className="text-[9px] px-0.5 py-2 rounded bg-[var(--panel)] border border-[var(--border)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer font-bold shadow-xs"
+              >
+                {leftCollapsed ? "▶" : "◀"}
+              </button>
+            </div>
+          </div>
+
+          {/* Center: Canvas / Visualization */}
+          <div
+            ref={centerPanelRef}
+            className={`flex-1 flex flex-col gap-3 min-w-0 px-1 ${
+              mobileTab !== "canvas" ? "hidden lg:flex" : "flex"
+            }`}
+          >
+            <VisualizationPanel
+              tab={tab}
+              onTabChange={setTab}
+              steps={steps}
+              activeStep={activeStep}
+              current={current}
+              playing={playing}
+              onPlay={play}
+              onStepChange={setActiveStep}
+              finalRows={finalRows}
+              columns={columns}
+              onExportCSV={exportCSV}
+              onExportReport={exportReport}
               sql={sql}
-              onSqlChange={(newSql) => {
-                setSql(newSql);
-                if (error) setError(undefined);
-              }}
-              onRunQuery={() => runQuery()}
-              onExampleSelect={selectExample}
-              onResetDatabase={resetDatabase}
-              error={error}
-              history={history}
-              onSelectHistory={selectHistory}
-              onVoiceTranslateAndRun={(params) => translateNL(params)}
-              isTranslating={isTranslating}
-              voiceFeedback={voiceFeedback}
-              onToggleVoiceFeedback={setVoiceFeedback}
+              mermaidSource={mermaidSource}
+              schema={activeSchema}
+              dark={isDark}
               theme={theme}
-              minPanelHeight={sidePanelMinHeight}
-              maxPanelHeight={sidePanelMaxHeight}
-              panelHeight={sidePanelHeight}
+              explanation={explanation}
+              hasExecuted={hasExecuted}
             />
           </div>
-        </div>
+        </main>
 
-        {/* Resizer Slider Handle 1: Between Left and Center */}
-        <div
-          onMouseDown={() => setIsResizingLeft(true)}
-          className="hidden lg:flex w-3 hover:w-4 items-center justify-center cursor-col-resize group relative z-10 shrink-0 transition-all self-stretch"
-          title="Drag to resize panel or click arrow to collapse"
-        >
-          <div className="w-1 h-12 rounded-full bg-zinc-600/30 group-hover:bg-[var(--accent)] transition-colors flex items-center justify-center">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setLeftCollapsed((prev) => !prev);
-              }}
-              title={leftCollapsed ? "Expand Left Panel" : "Collapse Left Panel"}
-              className="text-[9px] px-0.5 py-2 rounded bg-[var(--panel)] border border-[var(--border)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer font-bold shadow-xs"
-            >
-              {leftCollapsed ? "▶" : "◀"}
-            </button>
-          </div>
-        </div>
-
-        {/* Center: Canvas / Visualization */}
-        <div
-          ref={centerPanelRef}
-          className={`flex-1 flex flex-col gap-3 min-w-0 px-1 ${mobileTab !== "canvas" ? "hidden lg:flex" : "flex"
-            }`}
-        >
-          <VisualizationPanel
-            tab={tab}
-            onTabChange={setTab}
-            steps={steps}
-            activeStep={activeStep}
-            current={current}
-            playing={playing}
-            onPlay={play}
-            onStepChange={setActiveStep}
+        {/* Major Section Views */}
+        {activeSection === "download" && (
+          <DownloadView
+            dataset={selectedDataset}
+            activeSchema={activeSchema}
+            lastExecutionData={lastExecutionData}
             finalRows={finalRows}
             columns={columns}
-            onExportCSV={exportCSV}
-            onExportReport={exportReport}
-            sql={sql}
-            mermaidSource={mermaidSource}
-            schema={activeSchema}
-            dark={isDark}
+            history={history}
             theme={theme}
-            explanation={explanation}
             hasExecuted={hasExecuted}
           />
-        </div>
-
-        {/* Resizer Slider Handle 2: Between Center and Right */}
-        <div
-          onMouseDown={() => setIsResizingRight(true)}
-          className="hidden lg:flex w-3 hover:w-4 items-center justify-center cursor-col-resize group relative z-10 shrink-0 transition-all self-stretch"
-          title="Drag to resize panel or click arrow to collapse"
-        >
-          <div className="w-1 h-12 rounded-full bg-zinc-600/30 group-hover:bg-[var(--accent)] transition-colors flex items-center justify-center">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setRightCollapsed((prev) => !prev);
-              }}
-              title={rightCollapsed ? "Expand Right Panel" : "Collapse Right Panel"}
-              className="text-[9px] px-0.5 py-2 rounded bg-[var(--panel)] border border-[var(--border)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer font-bold shadow-xs"
-            >
-              {rightCollapsed ? "◀" : "▶"}
-            </button>
-          </div>
-        </div>
-
-        {/* Right Sidebar: Explanation Panel */}
-        <div
-          style={{ width: rightCollapsed ? "0px" : `${rightWidth}px` }}
-          className={`flex flex-col shrink-0 transition-[width] duration-150 ease-out overflow-hidden ${mobileTab !== "tools" ? "hidden lg:flex" : "flex w-full"
-            }`}
-        >
-          <div className="pl-2 h-full flex flex-col">
-            <ExplanationPanel
-              current={current}
-              error={error}
-              dataset={selectedDataset}
-              activeSchema={activeSchema}
-              minPanelHeight={sidePanelMinHeight}
-              maxPanelHeight={sidePanelMaxHeight}
-              panelHeight={sidePanelHeight}
-            />
-          </div>
-        </div>
-      </main>
-
-      {/* Major Section Views */}
-      {activeSection === "download" && (
-        <DownloadView
-          onBackToWorkspace={() => setActiveSection("workspace")}
-          dataset={selectedDataset}
-          activeSchema={activeSchema}
-          lastExecutionData={lastExecutionData}
-          finalRows={finalRows}
-          columns={columns}
-          history={history}
-          theme={theme}
-          hasExecuted={hasExecuted}
-        />
-      )}
-      {activeSection === "learn" && (
-        <LearnView onBackToWorkspace={() => setActiveSection("workspace")} />
-      )}
-      {activeSection === "help" && (
-        <HelpView onBackToWorkspace={() => setActiveSection("workspace")} />
-      )}
-      {activeSection === "developedBy" && (
-        <DevelopedByView
-          onBackToWorkspace={() => setActiveSection("workspace")}
-        />
-      )}
+        )}
+        {activeSection === "learn" && <LearnView />}
+        {activeSection === "help" && <HelpView />}
+        {activeSection === "developedBy" && <DevelopedByView />}
+      </div>
 
       {/* Mobile-Optimized Bottom Navigation Bar */}
       <nav
@@ -846,32 +787,28 @@ export default function Home() {
           <span className="text-xs font-medium">Help</span>
         </button>
 
-        {/* Info & Tools button */}
+        {/* Input vs Canvas toggle buttons */}
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() =>
-              setMobileTab((prev) => (prev === "tools" ? "canvas" : "tools"))
-            }
-            className="flex flex-col items-center justify-center gap-1 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+            onClick={() => setMobileTab("canvas")}
+            className="flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-lg transition-colors cursor-pointer"
             style={{
-              background: mobileTab === "tools" ? "var(--surface-hover)" : "transparent",
+              background: mobileTab === "canvas" ? "var(--surface-hover)" : "transparent",
               color: "var(--foreground)",
             }}
-            aria-label="Toggle info and tools"
+            aria-label="View Canvas"
           >
             <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
             </svg>
-            <span className="text-xs font-medium">Info &amp; Tools</span>
+            <span className="text-xs font-medium">Canvas</span>
           </button>
 
           <button
             type="button"
-            onClick={() =>
-              setMobileTab((prev) => (prev === "input" ? "canvas" : "input"))
-            }
-            className="flex flex-col items-center justify-center gap-1 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+            onClick={() => setMobileTab("input")}
+            className="flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-lg transition-colors cursor-pointer"
             style={{
               background: mobileTab === "input" ? "var(--surface-hover)" : "transparent",
               color: "var(--foreground)",
