@@ -22,7 +22,10 @@ import {
 } from "@/lib/schema";
 import { executeSQL, type PipelineStep, type Row } from "@/lib/sqlEngine";
 import { speakText } from "@/lib/useSpeechRecognition";
-import { buildQueryExplanation, type QueryExplanation } from "@/lib/queryExplainer";
+import {
+  buildQueryExplanation,
+  type QueryExplanation,
+} from "@/lib/queryExplainer";
 import {
   generateMarkdownReport,
   generateTextReport,
@@ -45,7 +48,9 @@ export default function Home() {
   const [datasetToEdit, setDatasetToEdit] = useState<Dataset | null>(null);
 
   const allDatasets = useMemo(() => {
-    const activeBuiltins = DATASETS.filter((d) => !deletedBuiltinIds.includes(d.id));
+    const activeBuiltins = DATASETS.filter(
+      (d) => !deletedBuiltinIds.includes(d.id),
+    );
     return [...activeBuiltins, ...customDatasets];
   }, [deletedBuiltinIds, customDatasets]);
 
@@ -70,7 +75,8 @@ export default function Home() {
     confidence: number;
     interpretation: string;
   } | null>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
+  const [isTranslatingVoice, setIsTranslatingVoice] = useState(false);
+  const [isTranslatingText, setIsTranslatingText] = useState(false);
   const [voiceFeedback, setVoiceFeedback] = useState(false);
   const [steps, setSteps] = useState<PipelineStep[]>([]);
   const [finalRows, setFinalRows] = useState<Row[]>([]);
@@ -82,7 +88,8 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("result");
   const [explanation, setExplanation] = useState<QueryExplanation | null>(null);
   const [hasExecuted, setHasExecuted] = useState(false);
-  const [lastExecutionData, setLastExecutionData] = useState<ReportExecutionData | null>(null);
+  const [lastExecutionData, setLastExecutionData] =
+    useState<ReportExecutionData | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Modals & Panels UI state
@@ -91,8 +98,12 @@ export default function Home() {
 
   // Dynamic Central Panel Height & Window Height Measurement
   const centerPanelRef = useRef<HTMLDivElement>(null);
-  const [centerHeight, setCenterHeight] = useState<number | undefined>(undefined);
-  const [windowHeight, setWindowHeight] = useState<number | undefined>(undefined);
+  const [centerHeight, setCenterHeight] = useState<number | undefined>(
+    undefined,
+  );
+  const [windowHeight, setWindowHeight] = useState<number | undefined>(
+    undefined,
+  );
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -131,13 +142,23 @@ export default function Home() {
   // - Minimum height is window height (available window height: windowHeight - header ~52px - main p-4 ~32px)
   // - Max height is central pane's height IF central pane's height is more than screen height
   // During SSR and initial hydration, use consistent CSS string "calc(100vh - 5.25rem)" to prevent hydration mismatches
-  const availableScreenHeight = isMounted && windowHeight ? Math.max(350, windowHeight - 84) : undefined;
+  const availableScreenHeight =
+    isMounted && windowHeight ? Math.max(350, windowHeight - 84) : undefined;
   const isCenterTallerThanScreen = Boolean(
-    availableScreenHeight && centerHeight && centerHeight > availableScreenHeight
+    availableScreenHeight &&
+    centerHeight &&
+    centerHeight > availableScreenHeight,
   );
-  const sidePanelMinHeight = isMounted && availableScreenHeight ? availableScreenHeight : "calc(100vh - 5.25rem)";
-  const sidePanelMaxHeight = isMounted && isCenterTallerThanScreen ? centerHeight : undefined;
-  const sidePanelHeight = isMounted && isCenterTallerThanScreen ? centerHeight : (availableScreenHeight || "calc(100vh - 5.25rem)");
+  const sidePanelMinHeight =
+    isMounted && availableScreenHeight
+      ? availableScreenHeight
+      : "calc(100vh - 5.25rem)";
+  const sidePanelMaxHeight =
+    isMounted && isCenterTallerThanScreen ? centerHeight : undefined;
+  const sidePanelHeight =
+    isMounted && isCenterTallerThanScreen
+      ? centerHeight
+      : availableScreenHeight || "calc(100vh - 5.25rem)";
 
   const isDark = useMemo(() => theme !== "pearl", [theme]);
 
@@ -169,10 +190,10 @@ export default function Home() {
         // "colorful-dark": "eclipse",
         // "blue-dark": "lazuli",
         "blue-light": "pearl",
-        "greyscale": "slate",
+        greyscale: "slate",
         // "high-contrast": "volt",
-        "dark": "slate",
-        "light": "pearl",
+        dark: "slate",
+        light: "pearl",
       };
       if (legacyMap[savedTheme]) savedTheme = legacyMap[savedTheme];
       const valid: ThemeId[] = ["slate", "pearl"]; // ["eclipse", "lazuli", "volt"] commented out
@@ -181,7 +202,7 @@ export default function Home() {
         : "slate";
       setTheme(activeTheme);
       applyThemeToDOM(activeTheme);
-    } catch { }
+    } catch {}
   }, [applyThemeToDOM]);
 
   const handleThemeChange = useCallback(
@@ -190,7 +211,7 @@ export default function Home() {
       applyThemeToDOM(nextTheme);
       try {
         localStorage.setItem("nlp-sql-theme", nextTheme);
-      } catch { }
+      } catch {}
     },
     [applyThemeToDOM],
   );
@@ -205,7 +226,7 @@ export default function Home() {
           setCustomDatasets(parsed);
         }
       }
-    } catch { }
+    } catch {}
 
     try {
       const savedDeleted = localStorage.getItem("nlp-sql-deleted-builtins");
@@ -215,7 +236,7 @@ export default function Home() {
           setDeletedBuiltinIds(parsed);
         }
       }
-    } catch { }
+    } catch {}
 
     try {
       const savedHistory = localStorage.getItem("nlp-sql-history");
@@ -223,7 +244,7 @@ export default function Home() {
         const parsedHistory = JSON.parse(savedHistory) as HistoryItem[];
         setHistory(parsedHistory);
       }
-    } catch { }
+    } catch {}
   }, []);
 
   const runQuery = useCallback(
@@ -297,7 +318,7 @@ export default function Home() {
           const next = [item, ...previous].slice(0, 100);
           try {
             localStorage.setItem("nlp-sql-history", JSON.stringify(next));
-          } catch { }
+          } catch {}
           return next;
         });
       }
@@ -316,7 +337,8 @@ export default function Home() {
 
   const changeDataset = useCallback(
     (id: string) => {
-      const dataset = allDatasets.find((item) => item.id === id) ?? allDatasets[0];
+      const dataset =
+        allDatasets.find((item) => item.id === id) ?? allDatasets[0];
       setSelectedDatasetId(dataset.id);
       setActiveSchema(getDefaultSchema(dataset.id, allDatasets));
       setSql(dataset.defaultQuery);
@@ -339,7 +361,7 @@ export default function Home() {
       setDeletedBuiltinIds([]);
       try {
         localStorage.removeItem("nlp-sql-deleted-builtins");
-      } catch { }
+      } catch {}
     }
     setActiveSchema(getDefaultSchema(selectedDataset.id, allDatasets));
     setSql(selectedDataset.defaultQuery);
@@ -368,15 +390,18 @@ export default function Home() {
           const next = prev.filter((d) => d.id !== id);
           try {
             localStorage.setItem(CUSTOM_DATASETS_KEY, JSON.stringify(next));
-          } catch { }
+          } catch {}
           return next;
         });
       } else {
         setDeletedBuiltinIds((prev) => {
           const next = [...prev, id];
           try {
-            localStorage.setItem("nlp-sql-deleted-builtins", JSON.stringify(next));
-          } catch { }
+            localStorage.setItem(
+              "nlp-sql-deleted-builtins",
+              JSON.stringify(next),
+            );
+          } catch {}
           return next;
         });
       }
@@ -413,7 +438,7 @@ export default function Home() {
       }
       try {
         localStorage.setItem(CUSTOM_DATASETS_KEY, JSON.stringify(next));
-      } catch { }
+      } catch {}
       return next;
     });
     setSelectedDatasetId(savedDataset.id);
@@ -465,8 +490,7 @@ export default function Home() {
           : (params?.question ?? nlInput).trim();
       const audioBase64 =
         typeof params === "object" ? params.audioBase64 : undefined;
-      const mimeType =
-        typeof params === "object" ? params.mimeType : undefined;
+      const mimeType = typeof params === "object" ? params.mimeType : undefined;
 
       if (!questionToTranslate && !audioBase64) {
         setError("Please enter a query.");
@@ -477,7 +501,9 @@ export default function Home() {
       }
       setError(undefined);
       setNlInfo(null);
-      setIsTranslating(true);
+      const isVoiceTranslation = Boolean(audioBase64);
+      setIsTranslatingVoice(isVoiceTranslation);
+      setIsTranslatingText(!isVoiceTranslation);
       try {
         const response = await fetch("/api/translate", {
           method: "POST",
@@ -520,7 +546,8 @@ export default function Home() {
           "Unable to generate a valid SQL query from this request. Try being more specific.",
         );
       } finally {
-        setIsTranslating(false);
+        setIsTranslatingVoice(false);
+        setIsTranslatingText(false);
       }
     },
     [nlInput, runQuery, selectedDataset, activeSchema, voiceFeedback],
@@ -688,7 +715,8 @@ export default function Home() {
                 history={history}
                 onSelectHistory={selectHistory}
                 onVoiceTranslateAndRun={(params) => translateNL(params)}
-                isTranslating={isTranslating}
+                isTranslatingVoice={isTranslatingVoice}
+                isTranslatingText={isTranslatingText}
                 voiceFeedback={voiceFeedback}
                 onToggleVoiceFeedback={setVoiceFeedback}
                 theme={theme}
@@ -712,7 +740,9 @@ export default function Home() {
                   e.stopPropagation();
                   setLeftCollapsed((prev) => !prev);
                 }}
-                title={leftCollapsed ? "Expand Left Panel" : "Collapse Left Panel"}
+                title={
+                  leftCollapsed ? "Expand Left Panel" : "Collapse Left Panel"
+                }
                 className="text-[9px] px-0.5 py-2 rounded bg-[var(--panel)] border border-[var(--border)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer font-bold shadow-xs"
               >
                 {leftCollapsed ? "▶" : "◀"}
@@ -781,8 +811,18 @@ export default function Home() {
           className="flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           aria-label="Open help and documentation"
         >
-          <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-5 h-5 opacity-80"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <span className="text-xs font-medium">Help</span>
         </button>
@@ -794,13 +834,24 @@ export default function Home() {
             onClick={() => setMobileTab("canvas")}
             className="flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-lg transition-colors cursor-pointer"
             style={{
-              background: mobileTab === "canvas" ? "var(--surface-hover)" : "transparent",
+              background:
+                mobileTab === "canvas" ? "var(--surface-hover)" : "transparent",
               color: "var(--foreground)",
             }}
             aria-label="View Canvas"
           >
-            <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+            <svg
+              className="w-5 h-5 opacity-80"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
+              />
             </svg>
             <span className="text-xs font-medium">Canvas</span>
           </button>
@@ -810,13 +861,24 @@ export default function Home() {
             onClick={() => setMobileTab("input")}
             className="flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-lg transition-colors cursor-pointer"
             style={{
-              background: mobileTab === "input" ? "var(--surface-hover)" : "transparent",
+              background:
+                mobileTab === "input" ? "var(--surface-hover)" : "transparent",
               color: "var(--foreground)",
             }}
             aria-label="Toggle input panel"
           >
-            <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            <svg
+              className="w-5 h-5 opacity-80"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
             </svg>
             <span className="text-xs font-medium">Input</span>
           </button>

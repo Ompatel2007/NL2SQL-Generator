@@ -604,8 +604,138 @@ export function analyzeSQL(
     }
   }
 
-  // 11. Validate WHERE clause on the complete line
+  // 10.5. Detect Missing WHERE Clause before condition (e.g. `SELECT name, city FROM customers city = 'Mumbai'`)
   const whereIdx = tokens.findIndex((t) => t.upper === "WHERE");
+  if (whereIdx === -1) {
+    if (firstToken === "SELECT") {
+      const fromIdx = tokens.findIndex((t) => t.upper === "FROM");
+      if (fromIdx !== -1 && fromIdx + 1 < tokens.length) {
+        let scanIdx = fromIdx + 1;
+        // Skip base table name
+        if (scanIdx < tokens.length && !SQL_KEYWORDS.has(tokens[scanIdx].upper)) {
+          scanIdx++;
+        }
+        // Skip table alias (e.g. `AS c` or `c`)
+        if (scanIdx < tokens.length && tokens[scanIdx].upper === "AS" && scanIdx + 1 < tokens.length) {
+          scanIdx += 2;
+        } else if (
+          scanIdx < tokens.length &&
+          !SQL_KEYWORDS.has(tokens[scanIdx].upper) &&
+          scanIdx + 1 < tokens.length &&
+          !["=", "!=", "<>", "<", ">", "<=", ">=", "LIKE", "IN", "IS", "==", "===", "!=="].includes(tokens[scanIdx + 1].text)
+        ) {
+          scanIdx++;
+        }
+
+        // Skip any JOIN clauses: JOIN <table> [alias] ON <col> = <col>
+        while (scanIdx < tokens.length && tokens[scanIdx].upper === "JOIN") {
+          scanIdx++; // skip JOIN
+          if (scanIdx < tokens.length && !SQL_KEYWORDS.has(tokens[scanIdx].upper)) scanIdx++; // skip join table
+          if (scanIdx < tokens.length && tokens[scanIdx].upper === "AS" && scanIdx + 1 < tokens.length) scanIdx += 2;
+          else if (scanIdx < tokens.length && !SQL_KEYWORDS.has(tokens[scanIdx].upper)) scanIdx++; // alias
+          if (scanIdx < tokens.length && tokens[scanIdx].upper === "ON") {
+            scanIdx++; // skip ON
+            if (scanIdx < tokens.length) scanIdx++; // skip left
+            if (scanIdx < tokens.length && tokens[scanIdx].text === "=") scanIdx++; // skip =
+            if (scanIdx < tokens.length) scanIdx++; // skip right
+          }
+        }
+
+        // Check if a condition is present without WHERE
+        if (scanIdx < tokens.length && tokens[scanIdx].text !== ";") {
+          const condTok = tokens[scanIdx];
+          const nextTok = scanIdx + 1 < tokens.length ? tokens[scanIdx + 1] : undefined;
+          const isClauseKeyword = ["GROUP", "ORDER", "HAVING", "LIMIT", "UNION"].includes(condTok.upper);
+
+          if (!isClauseKeyword) {
+            const KNOWN_OPS = new Set(["=", "!=", "<>", "<", ">", "<=", ">=", "LIKE", "IN", "IS", "==", "===", "!=="]);
+            const isFollowedByOp = nextTok && KNOWN_OPS.has(nextTok.text);
+            const isKnownCol = activeColumns.some((c) => c.name.toLowerCase() === condTok.text.toLowerCase());
+
+            if (isFollowedByOp || isKnownCol || condTok.text.includes("=")) {
+              let endScan = scanIdx;
+              while (
+                endScan < tokens.length &&
+                tokens[endScan].text !== ";" &&
+                !["GROUP", "ORDER", "HAVING", "LIMIT", "UNION"].includes(tokens[endScan].upper)
+              ) {
+                endScan++;
+              }
+              const conditionSnippet = rawSql
+                .slice(condTok.start, endScan < tokens.length ? tokens[endScan - 1].end : rawSql.length)
+                .trim()
+                .replace(/;+$/, "");
+
+              return {
+                severity: "error",
+                title: "Missing WHERE clause",
+                what: `Expected 'WHERE' keyword before condition \`${conditionSnippet || condTok.text}\``,
+                where: `Before \`${condTok.text}\``,
+                suggestionText: `Insert \`WHERE\` before \`${condTok.text}\` to filter records.`,
+                quickFix: {
+                  label: "Insert 'WHERE'",
+                  replacement: `WHERE ${condTok.text}`,
+                  range: [condTok.start, condTok.end],
+                },
+                suggestionsTitle: "Quick Fix:",
+                suggestions: [
+                  {
+                    label: `WHERE ${condTok.text}`,
+                    value: `WHERE ${condTok.text}`,
+                    category: "fix",
+                    detail: "Insert missing WHERE clause",
+                    rangeToReplace: [condTok.start, condTok.end],
+                  },
+                ],
+              };
+            }
+          }
+        }
+      }
+    } else if (firstToken === "DELETE") {
+      const fromIdx = tokens.findIndex((t) => t.upper === "FROM");
+      const tblIdx = fromIdx !== -1 ? fromIdx + 1 : 1;
+      if (tblIdx + 1 < tokens.length && tokens[tblIdx + 1].text !== ";") {
+        const condTok = tokens[tblIdx + 1];
+        const nextTok = tblIdx + 2 < tokens.length ? tokens[tblIdx + 2] : undefined;
+        const KNOWN_OPS = new Set(["=", "!=", "<>", "<", ">", "<=", ">=", "LIKE", "IN", "IS", "==", "===", "!=="]);
+        const isFollowedByOp = nextTok && KNOWN_OPS.has(nextTok.text);
+        const isKnownCol = activeColumns.some((c) => c.name.toLowerCase() === condTok.text.toLowerCase());
+
+        if (isFollowedByOp || isKnownCol || condTok.text.includes("=")) {
+          const conditionSnippet = rawSql
+            .slice(condTok.start)
+            .trim()
+            .replace(/;+$/, "");
+
+          return {
+            severity: "error",
+            title: "Missing WHERE clause",
+            what: `Expected 'WHERE' keyword before condition \`${conditionSnippet || condTok.text}\``,
+            where: `Before \`${condTok.text}\``,
+            suggestionText: `Insert \`WHERE\` before \`${condTok.text}\` in DELETE statement.`,
+            quickFix: {
+              label: "Insert 'WHERE'",
+              replacement: `WHERE ${condTok.text}`,
+              range: [condTok.start, condTok.end],
+            },
+            suggestionsTitle: "Quick Fix:",
+            suggestions: [
+              {
+                label: `WHERE ${condTok.text}`,
+                value: `WHERE ${condTok.text}`,
+                category: "fix",
+                detail: "Insert missing WHERE clause",
+                rangeToReplace: [condTok.start, condTok.end],
+              },
+            ],
+          };
+        }
+      }
+    }
+  }
+
+  // 11. Validate WHERE clause on the complete line
   if (whereIdx !== -1) {
     const nextClauseIdx = tokens.findIndex(
       (t, idx) => idx > whereIdx && ["GROUP", "ORDER", "HAVING", "LIMIT", "UNION"].includes(t.upper)

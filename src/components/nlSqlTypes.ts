@@ -77,8 +77,6 @@ export const THEME_CONFIGS: ThemeConfig[] = [
   */
 ];
 
-
-
 export interface InputPanelProps {
   datasets: Dataset[];
   selectedDatasetId: string;
@@ -106,7 +104,8 @@ export interface InputPanelProps {
     mimeType?: string;
     question?: string;
   }) => void;
-  isTranslating?: boolean;
+  isTranslatingVoice?: boolean;
+  isTranslatingText?: boolean;
   voiceFeedback?: boolean;
   onToggleVoiceFeedback?: (enabled: boolean) => void;
   onOpenCreateModal?: () => void;
@@ -138,4 +137,3 @@ export interface VisualizationPanelProps {
   lastResult?: QueryResult | null;
   onResetDatabase?: () => void;
 }
-

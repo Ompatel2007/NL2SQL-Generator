@@ -16,6 +16,7 @@ interface VoiceButtonProps {
   voiceFeedback?: boolean;
   onToggleVoiceFeedback?: (enabled: boolean) => void;
   isTranslating?: boolean;
+  isTextTranslating?: boolean;
 }
 
 export function VoiceButton({
@@ -32,10 +33,12 @@ export function VoiceButton({
   voiceFeedback = false,
   onToggleVoiceFeedback,
   isTranslating = false,
+  isTextTranslating = false,
 }: VoiceButtonProps) {
   const currentLiveSpeech = useMemo(() => {
     return (transcript + " " + interimTranscript).trim();
   }, [transcript, interimTranscript]);
+  const isBusy = isTranslating || isTextTranslating;
 
   if (!isSupported) {
     return (
@@ -48,8 +51,18 @@ export function VoiceButton({
         }}
       >
         <p className="font-semibold flex items-center gap-1.5">
-          <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <svg
+            className="w-4 h-4 text-amber-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
           <span>Audio recording unavailable</span>
         </p>
@@ -66,19 +79,20 @@ export function VoiceButton({
         <button
           type="button"
           onClick={isListening ? onStopListening : onStartListening}
-          disabled={isTranslating}
-          className={`relative flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 h-8.5 rounded-md text-xs font-semibold transition-all duration-200 cursor-pointer shadow-xs ${isListening
+          disabled={isBusy}
+          className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 px-3 h-8.5 rounded-md text-sm font-semibold transition-all duration-200 cursor-pointer shadow-xs ${
+            isListening
               ? "bg-red-600 hover:bg-red-700 text-white shadow-red-600/20"
-              : isTranslating
+              : isBusy
                 ? "bg-zinc-800 text-white cursor-wait opacity-75"
                 : "hover:opacity-95 shadow-md"
-            }`}
+          }`}
           style={
-            !isListening && !isTranslating
+            !isListening && !isBusy
               ? {
-                background: "var(--accent-gradient, var(--accent))",
-                color: "var(--accent-foreground)",
-              }
+                  background: "var(--accent-gradient, var(--accent))",
+                  color: "var(--accent-foreground)",
+                }
               : undefined
           }
           aria-label={isListening ? "Stop listening" : "Speak to SQL"}
@@ -178,7 +192,10 @@ export function VoiceButton({
               {autoExecute ? "Translates when stopped" : "Dictation mode"}
             </span>
           </div>
-          <p className="italic min-h-[1.25rem] opacity-90" style={{ color: "var(--foreground)" }}>
+          <p
+            className="italic min-h-[1.25rem] opacity-90"
+            style={{ color: "var(--foreground)" }}
+          >
             {currentLiveSpeech ||
               "Listening to your voice... Speak your database query now."}
           </p>
@@ -187,7 +204,7 @@ export function VoiceButton({
 
       {/* Voice Controls: Auto Execute & Text-to-Speech checkboxes */}
       <div
-        className="flex flex-wrap items-center justify-between text-xs px-1 gap-2"
+        className="flex flex-wrap items-center justify-between text-xs px-1 gap-2 py-2"
         style={{ color: "var(--muted)" }}
       >
         {onToggleAutoExecute && (
@@ -199,7 +216,9 @@ export function VoiceButton({
               className="rounded"
               style={{ accentColor: "var(--accent)" }}
             />
-            <span style={{ color: "var(--foreground)" }}>Auto-Translate on stop</span>
+            <span style={{ color: "var(--foreground)" }}>
+              Auto-Translate on stop
+            </span>
           </label>
         )}
         {onToggleVoiceFeedback && (

@@ -34,6 +34,15 @@ export type SQLCommand =
   | "ALTER TABLE"
   | "TRUNCATE";
 
+export const SQL_KEYWORDS = new Set([
+  "SELECT", "FROM", "WHERE", "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "OUTER",
+  "ON", "GROUP", "BY", "HAVING", "ORDER", "ASC", "DESC", "LIMIT", "OFFSET",
+  "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE", "CREATE", "TABLE",
+  "ALTER", "DROP", "TRUNCATE", "AND", "OR", "NOT", "IN", "IS", "NULL", "LIKE",
+  "BETWEEN", "AS", "DISTINCT", "COUNT", "SUM", "AVG", "MIN", "MAX", "CASE",
+  "WHEN", "THEN", "ELSE", "END"
+]);
+
 export interface QueryResult {
   statementType: StatementType;
   command: SQLCommand;
@@ -453,25 +462,68 @@ function parseSelect(q: string, schema: Table[]): ParsedSelectQuery {
 
   const clauses = splitClauses(q);
   const sel = clauses.get("select") ?? "";
-  parsed.from = (clauses.get("from") ?? "").toLowerCase();
-  if (!parsed.from) throw new Error("Missing FROM clause in SELECT statement.");
+  const rawFrom = clauses.get("from") ?? "";
+  if (!rawFrom.trim()) throw new Error("Missing FROM clause in SELECT statement.");
 
   // Parse FROM + JOINs
-  const fromParts = parsed.from.split(/\s+join\s+/i);
-  parsed.from = fromParts[0].split(/\s+/)[0];
+  const fromParts = rawFrom.split(/\s+join\s+/i);
+  const basePart = fromParts[0].trim();
+
+  // Check for operators indicating a missing WHERE clause in base table part
+  const baseCondMatch = basePart.match(
+    /\b([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)?)\s*(>=|<=|!=|<>|=|LIKE|>|<|IN|IS)\s*(.+)$/i,
+  );
+  if (baseCondMatch) {
+    const condSnippet = baseCondMatch[0].trim();
+    throw new Error(
+      `Missing WHERE keyword before condition "${condSnippet}". Did you mean "WHERE ${condSnippet}"?`,
+    );
+  }
+
+  const baseWords = basePart.split(/\s+/);
+  parsed.from = baseWords[0].toLowerCase();
   if (!getTable(parsed.from, schema)) {
     throw new Error(`Unknown table "${parsed.from}".`);
   }
 
+  // Validate that any extra tokens after table name form a valid alias (e.g., "table alias" or "table AS alias")
+  if (baseWords.length === 2) {
+    const aliasCandidate = baseWords[1];
+    if (SQL_KEYWORDS.has(aliasCandidate.toUpperCase()) || /^[=<>!;&|]+$/.test(aliasCandidate)) {
+      throw new Error(
+        `Unexpected token "${aliasCandidate}" after table "${parsed.from}".`,
+      );
+    }
+  } else if (baseWords.length === 3 && baseWords[1].toUpperCase() === "AS") {
+    const aliasCandidate = baseWords[2];
+    if (SQL_KEYWORDS.has(aliasCandidate.toUpperCase()) || /^[=<>!;&|]+$/.test(aliasCandidate)) {
+      throw new Error(
+        `Unexpected alias "${aliasCandidate}" after table "${parsed.from}".`,
+      );
+    }
+  } else if (baseWords.length > 1) {
+    const extraTokens = baseWords.slice(1).join(" ");
+    throw new Error(
+      `Unexpected token "${extraTokens}" in FROM clause. Did you mean "WHERE ${extraTokens}"?`,
+    );
+  }
+
   for (let i = 1; i < fromParts.length; i++) {
-    const m = fromParts[i].match(
-      /^(inner\s+|left\s+(outer\s+)?)?(\w+)\s+on\s+([\w.]+)\s*=\s*([\w.]+)$/i,
+    const part = fromParts[i].trim();
+    const m = part.match(
+      /^(?:(inner|left)(?:\s+outer)?\s+)?(\w+)(?:\s+(?:as\s+)?\w+)?\s+on\s+([\w.]+)\s*=\s*([\w.]+)(?:\s+(.+))?$/i,
     );
     if (!m) throw new Error(`Unsupported JOIN syntax: "JOIN ${fromParts[i]}".`);
-    const type = /^left/i.test(m[1] ?? "") ? "LEFT" : "INNER";
-    const table = m[3].toLowerCase();
+    const trailing = m[5]?.trim();
+    if (trailing) {
+      throw new Error(
+        `Missing WHERE keyword before condition "${trailing}". Did you mean "WHERE ${trailing}"?`,
+      );
+    }
+    const type = m[1]?.toLowerCase() === "left" ? "LEFT" : "INNER";
+    const table = m[2].toLowerCase();
     if (!getTable(table, schema)) throw new Error(`Unknown table "${table}".`);
-    parsed.joins.push({ table, left: m[4], right: m[5], type });
+    parsed.joins.push({ table, left: m[3], right: m[4], type });
   }
 
   // Parse SELECT list
@@ -719,6 +771,14 @@ function parseUpdate(q: string, schema: Table[]): ParsedUpdateQuery {
 }
 
 function parseDelete(q: string, schema: Table[]): ParsedDeleteQuery {
+  // Check for condition without WHERE keyword
+  const noWhereCond = q.match(/^delete(?:\s+from)?\s+([\w]+)\s+([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)?\s*(?:>=|<=|!=|<>|=|LIKE|>|<|IN|IS)\s*.+)$/i);
+  if (noWhereCond && !/^\s*where\b/i.test(noWhereCond[2])) {
+    throw new Error(
+      `Missing WHERE keyword before condition "${noWhereCond[2].trim()}". Did you mean "DELETE FROM ${noWhereCond[1]} WHERE ${noWhereCond[2].trim()}"?`,
+    );
+  }
+
   const match = q.match(/^delete(?:\s+from)?\s+([\w]+)(?:\s+where\s+(.+))?$/i);
   if (!match) {
     throw new Error(
