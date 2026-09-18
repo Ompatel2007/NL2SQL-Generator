@@ -12,6 +12,7 @@ import { GuideModal } from "@/components/GuideModal";
 import { HelpView } from "@/components/HelpView";
 import { LearnView } from "@/components/LearnView";
 import { DevelopedByView } from "@/components/DevelopedByView";
+import { DownloadView } from "@/components/DownloadView";
 import {
   DATASETS,
   getDefaultSchema,
@@ -294,7 +295,7 @@ export default function Home() {
           command: result.command,
         };
         setHistory((previous) => {
-          const next = [item, ...previous].slice(0, 5);
+          const next = [item, ...previous].slice(0, 100);
           try {
             localStorage.setItem("nlp-sql-history", JSON.stringify(next));
           } catch { }
@@ -793,7 +794,6 @@ export default function Home() {
               error={error}
               dataset={selectedDataset}
               activeSchema={activeSchema}
-              onDownloadReport={handleDownloadReport}
               minPanelHeight={sidePanelMinHeight}
               maxPanelHeight={sidePanelMaxHeight}
               panelHeight={sidePanelHeight}
@@ -803,6 +803,19 @@ export default function Home() {
       </main>
 
       {/* Major Section Views */}
+      {activeSection === "download" && (
+        <DownloadView
+          onBackToWorkspace={() => setActiveSection("workspace")}
+          dataset={selectedDataset}
+          activeSchema={activeSchema}
+          lastExecutionData={lastExecutionData}
+          finalRows={finalRows}
+          columns={columns}
+          history={history}
+          theme={theme}
+          hasExecuted={hasExecuted}
+        />
+      )}
       {activeSection === "learn" && (
         <LearnView onBackToWorkspace={() => setActiveSection("workspace")} />
       )}

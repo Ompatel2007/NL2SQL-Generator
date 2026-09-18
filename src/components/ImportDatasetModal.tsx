@@ -157,7 +157,7 @@ export function ImportDatasetModal({
                 Import Dataset
               </h2>
               <p className="text-xs opacity-70" style={{ color: "var(--muted)" }}>
-                Import data from Excel, CSV, JSON, TSV, or SQL files
+                Import data from SQLite (.db), Excel, CSV, JSON, TSV, or SQL files
               </p>
             </div>
           </div>
@@ -183,7 +183,7 @@ export function ImportDatasetModal({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xlsx,.xls,.xlsm,.csv,.tsv,.tab,.json,.sql,.txt"
+          accept=".xlsx,.xls,.xlsm,.csv,.tsv,.tab,.json,.sql,.txt,.db,.sqlite,.sqlite3"
           multiple
           onChange={handleFileChange}
           className="hidden"
@@ -227,13 +227,13 @@ export function ImportDatasetModal({
                   {isLoading ? "Reading and analyzing file..." : "Click to browse or drag and drop files here"}
                 </p>
                 <p className="text-xs opacity-70 mt-1" style={{ color: "var(--muted)" }}>
-                  Supports Excel (.xlsx, .xls), CSV, TSV, JSON, and SQL files. Multiple sheets or CSVs create multi-table datasets.
+                  Supports SQLite Database (.db, .sqlite), Excel (.xlsx, .xls), CSV, TSV, JSON, and SQL files.
                 </p>
               </div>
 
               {/* Supported format pills */}
               <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
-                {[".XLSX", ".XLS", ".CSV", ".JSON", ".TSV", ".SQL"].map((ext) => (
+                {[".DB", ".SQLITE", ".XLSX", ".CSV", ".JSON", ".TSV", ".SQL"].map((ext) => (
                   <span
                     key={ext}
                     className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold border"

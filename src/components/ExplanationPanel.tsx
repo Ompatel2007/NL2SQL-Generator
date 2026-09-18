@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { QueryResult } from "@/lib/sqlEngine";
 import type { Table, Dataset } from "@/lib/schema";
-import { generateDatasetSQL, generateTableCSV } from "@/lib/exportUtils";
 
 interface ExplanationPanelProps {
   current?: {
@@ -14,7 +13,6 @@ interface ExplanationPanelProps {
   lastResult?: QueryResult | null;
   dataset?: Dataset;
   activeSchema?: Table[];
-  onDownloadReport?: (format: "pdf" | "docx" | "txt") => void;
   minPanelHeight?: number | string;
   maxPanelHeight?: number;
   panelHeight?: number | string;
@@ -59,42 +57,10 @@ export function ExplanationPanel({
   lastResult,
   dataset,
   activeSchema = [],
-  onDownloadReport,
   minPanelHeight,
   maxPanelHeight,
   panelHeight,
 }: ExplanationPanelProps) {
-  const [isReportCollapsed, setIsReportCollapsed] = useState(false);
-
-  const handleExportSQL = () => {
-    if (!dataset) return;
-    const sqlContent = generateDatasetSQL(dataset.name, activeSchema);
-    const filename = `${dataset.name.toLowerCase().replace(/[^\w]/g, "_")}_schema.sql`;
-    downloadFile(sqlContent, filename, "application/sql");
-  };
-
-  const handleExportTableCSV = (table: Table) => {
-    const csvContent = generateTableCSV(table);
-    downloadFile(csvContent, `${table.name}.csv`, "text/csv");
-  };
-
-  const handleExportAllCSV = () => {
-    activeSchema.forEach((table) => {
-      const csvContent = generateTableCSV(table);
-      downloadFile(csvContent, `${table.name}.csv`, "text/csv");
-    });
-  };
-
-  const downloadFile = (content: string, filename: string, mimeType: string) => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <aside
       className="panel p-4 overflow-y-auto flex flex-col gap-5"
@@ -236,200 +202,6 @@ export function ExplanationPanel({
         className="border-t pt-4 mt-auto space-y-3.5"
         style={{ borderColor: "var(--border)" }}
       >
-        <div className="flex items-center justify-between">
-          <h3
-            className="font-bold text-sm uppercase tracking-wider flex items-center gap-1.5"
-            style={{ color: "var(--foreground)" }}
-          >
-            <svg
-              className="w-4 h-4 text-emerald-500 opacity-90"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-              />
-            </svg>
-            <span>Export Dataset</span>
-          </h3>
-          {dataset && (
-            <span
-              className="text-xs font-mono px-2 py-0.5 rounded border opacity-90"
-              style={{
-                background: "var(--surface-subtle)",
-                borderColor: "var(--border)",
-                color: "var(--muted)",
-              }}
-            >
-              {dataset.name}
-            </span>
-          )}
-        </div>
-
-        <div
-          className="p-3.5 rounded-xl border space-y-3"
-          style={{
-            background: "var(--surface-subtle)",
-            borderColor: "var(--border)",
-          }}
-        >
-          <p className="text-xs opacity-90" style={{ color: "var(--foreground)" }}>
-            Download active dataset in CSV and SQL script formats:
-          </p>
-
-          {/* Export SQL Script Button */}
-          <button
-            type="button"
-            onClick={handleExportSQL}
-            className="w-full text-left p-2.5 rounded-lg border text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs"
-            style={{
-              background: "var(--panel)",
-              borderColor: "var(--border)",
-              color: "var(--foreground)",
-            }}
-          >
-            <span className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-emerald-500 opacity-90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-              </svg>
-              <span>Export SQL Script (.sql)</span>
-            </span>
-            <span className="text-xs opacity-70 font-mono">DDL &amp; DML</span>
-          </button>
-
-          {/* CSV Tables Export Section */}
-          <div className="space-y-2 pt-1">
-            <div className="flex items-center justify-between text-xs font-semibold opacity-90">
-              <span>CSV Tables (.csv)</span>
-              {activeSchema.length > 1 && (
-                <button
-                  type="button"
-                  onClick={handleExportAllCSV}
-                  className="text-xs text-emerald-500 hover:underline cursor-pointer font-bold"
-                >
-                  Export All ({activeSchema.length})
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              {activeSchema.map((table) => (
-                <button
-                  key={table.name}
-                  type="button"
-                  onClick={() => handleExportTableCSV(table)}
-                  className="w-full text-left p-2.5 rounded-lg border text-xs flex items-center justify-between transition-colors cursor-pointer hover:bg-[var(--surface-hover)]"
-                  style={{
-                    background: "var(--panel)",
-                    borderColor: "var(--border)",
-                    color: "var(--foreground)",
-                  }}
-                >
-                  <span className="flex items-center gap-2 font-mono text-xs">
-                    <svg className="w-3.5 h-3.5 opacity-70 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span>{table.name}.csv</span>
-                  </span>
-                  <span className="text-xs opacity-70">
-                    {table.rows?.length ?? 0} rows
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="border-t my-2" style={{ borderColor: "var(--border)" }} />
-
-          {/* Collapsible DOWNLOAD REPORT Section */}
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setIsReportCollapsed((prev) => !prev)}
-              className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer hover:opacity-90 py-1"
-              style={{ color: "var(--foreground)" }}
-              aria-expanded={!isReportCollapsed}
-            >
-              <span className="flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5 text-purple-400 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span>Download Report</span>
-              </span>
-              <svg
-                className={`w-3.5 h-3.5 opacity-70 transition-transform duration-200 ${isReportCollapsed ? "" : "rotate-180"}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {!isReportCollapsed && (
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                {/* PDF Report */}
-                <button
-                  type="button"
-                  onClick={() => onDownloadReport?.("pdf")}
-                  title="Download PDF Execution Report"
-                  className="p-2 rounded-lg border text-center font-semibold text-xs transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs flex flex-col items-center justify-center gap-1"
-                  style={{
-                    background: "var(--panel)",
-                    borderColor: "var(--border)",
-                    color: "var(--foreground)",
-                  }}
-                >
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 font-bold">
-                    PDF
-                  </span>
-                  <span className="text-[11px] opacity-90">.pdf</span>
-                </button>
-
-                {/* DOCX Report */}
-                <button
-                  type="button"
-                  onClick={() => onDownloadReport?.("docx")}
-                  title="Download Word (DOCX) Execution Report"
-                  className="p-2 rounded-lg border text-center font-semibold text-xs transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs flex flex-col items-center justify-center gap-1"
-                  style={{
-                    background: "var(--panel)",
-                    borderColor: "var(--border)",
-                    color: "var(--foreground)",
-                  }}
-                >
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 font-bold">
-                    DOCX
-                  </span>
-                  <span className="text-[11px] opacity-90">.docx</span>
-                </button>
-
-                {/* TXT Report */}
-                <button
-                  type="button"
-                  onClick={() => onDownloadReport?.("txt")}
-                  title="Download Plain Text Execution Report"
-                  className="p-2 rounded-lg border text-center font-semibold text-xs transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs flex flex-col items-center justify-center gap-1"
-                  style={{
-                    background: "var(--panel)",
-                    borderColor: "var(--border)",
-                    color: "var(--foreground)",
-                  }}
-                >
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
-                    TXT
-                  </span>
-                  <span className="text-[11px] opacity-90">.txt</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </aside>
   );

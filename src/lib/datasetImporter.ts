@@ -646,6 +646,180 @@ export function parseExcelToTables(
 }
 
 /**
+ * Parses raw ArrayBuffer from an SQLite database file (.db, .sqlite, .sqlite3) into structured Tables.
+ * Gracefully falls back to text SQL if the file is a plain-text SQL script saved with .db extension.
+ */
+export async function parseSqliteDBToTables(
+  buffer: ArrayBuffer,
+  fileName: string,
+): Promise<{
+  tables: Table[];
+  datasetName?: string;
+  emptyValuesCleaned: number;
+  emptyRowsSkipped: number;
+}> {
+  const baseName = fileName.replace(/\.[^/.]+$/, "");
+  const bytes = new Uint8Array(buffer);
+
+  // Check if starts with "SQLite format 3\0"
+  const headerStr = new TextDecoder().decode(bytes.slice(0, 16));
+  const isBinarySqlite = headerStr.startsWith("SQLite format 3");
+
+  if (!isBinarySqlite) {
+    // Might be a plain text SQL file saved with .db extension
+    try {
+      const text = new TextDecoder().decode(bytes);
+      if (text.includes("CREATE TABLE") || text.includes("create table") || text.includes("INSERT INTO") || text.includes("insert into")) {
+        const sqlRes = parseSQLToTables(text, fileName);
+        return {
+          tables: sqlRes.tables,
+          datasetName: baseName,
+          emptyValuesCleaned: sqlRes.emptyValuesCleaned,
+          emptyRowsSkipped: sqlRes.emptyRowsSkipped,
+        };
+      }
+    } catch {
+      // Continue with SQLite engine
+    }
+  }
+
+  const sqlJsModule = await import("sql.js");
+  const initSqlJs = sqlJsModule.default || sqlJsModule;
+  const SQL = await initSqlJs({
+    locateFile: () => "/sql-wasm.wasm",
+  });
+
+  let db;
+  try {
+    db = new SQL.Database(bytes);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to read SQLite database "${fileName}": ${msg}`);
+  }
+
+  try {
+    // Query all user tables (exclude internal sqlite metadata tables)
+    const tableRes = db.exec(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%';",
+    );
+
+    if (!tableRes || tableRes.length === 0 || !tableRes[0].values || tableRes[0].values.length === 0) {
+      throw new Error(`No user tables found in SQLite database "${fileName}".`);
+    }
+
+    const tableNames = tableRes[0].values.map((v) => String(v[0]));
+    const tables: Table[] = [];
+    let totalCleaned = 0;
+    let totalSkipped = 0;
+
+    for (const tblName of tableNames) {
+      // Get table columns info
+      const colInfoRes = db.exec(`PRAGMA table_info("${tblName.replace(/"/g, '""')}");`);
+      const columns: Column[] = [];
+      if (colInfoRes && colInfoRes.length > 0 && colInfoRes[0].values) {
+        for (const colRow of colInfoRes[0].values) {
+          // colRow indices: cid(0), name(1), type(2), notnull(3), dflt_value(4), pk(5)
+          const colName = String(colRow[1]);
+          const rawType = String(colRow[2] || "").toUpperCase();
+          const isPk = Number(colRow[5]) > 0;
+
+          let colType: ColumnType = "TEXT";
+          if (rawType.includes("INT")) {
+            colType = "INTEGER";
+          } else if (
+            rawType.includes("REAL") ||
+            rawType.includes("FLOA") ||
+            rawType.includes("DOUB")
+          ) {
+            colType = "REAL";
+          } else if (rawType.includes("NUM")) {
+            colType = "NUMERIC";
+          } else if (rawType.includes("BOOL")) {
+            colType = "BOOLEAN";
+          } else if (rawType.includes("DATE")) {
+            colType = "DATE";
+          }
+
+          columns.push({
+            name: colName,
+            type: colType,
+            pk: isPk,
+          });
+        }
+      }
+
+      // Check foreign keys
+      try {
+        const fkRes = db.exec(`PRAGMA foreign_key_list("${tblName.replace(/"/g, '""')}");`);
+        if (fkRes && fkRes.length > 0 && fkRes[0].values) {
+          for (const fkRow of fkRes[0].values) {
+            // id(0), seq(1), table(2), from(3), to(4)
+            const toTable = String(fkRow[2]);
+            const fromCol = String(fkRow[3]);
+            const toCol = String(fkRow[4]);
+            const targetCol = columns.find((c) => c.name.toLowerCase() === fromCol.toLowerCase());
+            if (targetCol) {
+              targetCol.fk = { table: toTable, column: toCol };
+            }
+          }
+        }
+      } catch {
+        // ignore FK query errors
+      }
+
+      // Query rows
+      const dataRes = db.exec(`SELECT * FROM "${tblName.replace(/"/g, '""')}";`);
+      const rows: Record<string, string | number>[] = [];
+
+      if (dataRes && dataRes.length > 0) {
+        const resCols = dataRes[0].columns;
+        // ensure columns are recorded if table_info was empty
+        if (columns.length === 0) {
+          for (const c of resCols) {
+            columns.push({ name: c, type: "TEXT" });
+          }
+        }
+
+        for (const rVals of dataRes[0].values) {
+          const rowObj: Record<string, string | number> = {};
+          let allEmpty = true;
+          for (let i = 0; i < resCols.length; i++) {
+            const colName = resCols[i];
+            const rawVal = rVals[i];
+            if (rawVal !== null && rawVal !== undefined) {
+              allEmpty = false;
+              rowObj[colName] = typeof rawVal === "number" ? rawVal : String(rawVal);
+            } else {
+              totalCleaned++;
+            }
+          }
+          if (!allEmpty) {
+            rows.push(rowObj);
+          } else {
+            totalSkipped++;
+          }
+        }
+      }
+
+      tables.push({
+        name: tblName,
+        columns,
+        rows,
+      });
+    }
+
+    return {
+      tables,
+      datasetName: baseName,
+      emptyValuesCleaned: totalCleaned,
+      emptyRowsSkipped: totalSkipped,
+    };
+  } finally {
+    db.close();
+  }
+}
+
+/**
  * Main entry point: parses one or more uploaded files into a unified Dataset.
  */
 export async function parseImportedFiles(
@@ -724,11 +898,19 @@ export async function parseImportedFiles(
         allTables.push(...tables);
         totalEmptyCleaned += emptyValuesCleaned;
         totalRowsSkipped += emptyRowsSkipped;
-        if (!inferredDatasetName) inferredDatasetName = file.name.replace(/\.[^/.]+$/, "");
+      } else if (ext === "db" || ext === "sqlite" || ext === "sqlite3") {
+        detectedFormat = "SQLITE_DB";
+        const buffer = await file.arrayBuffer();
+        const { tables, datasetName, emptyValuesCleaned, emptyRowsSkipped } =
+          await parseSqliteDBToTables(buffer, file.name);
+        allTables.push(...tables);
+        totalEmptyCleaned += emptyValuesCleaned;
+        totalRowsSkipped += emptyRowsSkipped;
+        if (datasetName && !inferredDatasetName) inferredDatasetName = datasetName;
       } else {
         return {
           success: false,
-          error: `Unsupported file format ".${ext}" for "${file.name}". Supported formats are Excel (.xlsx, .xls), CSV, TSV, JSON, and SQL.`,
+          error: `Unsupported file format ".${ext}" for "${file.name}". Supported formats are SQLite Database (.db, .sqlite), Excel (.xlsx, .xls), CSV, TSV, JSON, and SQL.`,
         };
       }
     }

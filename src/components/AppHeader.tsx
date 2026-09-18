@@ -5,10 +5,11 @@ import { THEME_CONFIGS, type ThemeId } from "./nlSqlTypes";
 import Image from "next/image";
 import Logo from "../../public/Logo.png";
 
-export type NavSection = "workspace" | "learn" | "help" | "developedBy";
+export type NavSection = "workspace" | "download" | "learn" | "help" | "developedBy";
 
 const NAV_ITEMS: { id: NavSection; label: string }[] = [
   { id: "workspace", label: "Workspace" },
+  { id: "download", label: "Download" },
   { id: "learn", label: "Learn" },
   { id: "help", label: "Help" },
   { id: "developedBy", label: "Developed By" },

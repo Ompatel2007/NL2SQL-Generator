@@ -1,5 +1,6 @@
 import type { PipelineStep, Row, StatementType, SQLCommand } from "./sqlEngine";
 import type { QueryExplanation } from "./queryExplainer";
+import type { Table } from "./schema";
 
 export interface ReportExecutionData {
   sql: string;
@@ -7,6 +8,8 @@ export interface ReportExecutionData {
   inputMode: "nl" | "sql";
   datasetName: string;
   tables: string[];
+  schema?: Table[];
+  erDiagramImage?: string;
   steps: PipelineStep[];
   finalRows: Row[];
   columns: string[];
@@ -42,6 +45,26 @@ export function generateMarkdownReport(data: ReportExecutionData): string {
   const columns = data.columns || [];
   const steps = data.steps || [];
   const explanationSteps = data.explanation?.steps || [];
+
+  // Schema Markdown
+  let schemaMd = "";
+  if (data.schema && data.schema.length > 0) {
+    schemaMd = data.schema
+      .map(
+        (t) =>
+          `### Table: \`${t.name}\` (${t.rows?.length || 0} rows)\n` +
+          `| Column | Type | Primary Key | Foreign Key |\n|---|---|---|---|\n` +
+          t.columns
+            .map(
+              (c) =>
+                `| \`${c.name}\` | \`${c.type || "string"}\` | ${c.pk ? "YES" : "No"} | ${c.fk ? `\`${c.fk.table}.${c.fk.column}\`` : "None"} |`,
+            )
+            .join("\n"),
+      )
+      .join("\n\n");
+  } else if (data.tables && data.tables.length > 0) {
+    schemaMd = `**Tables Involved:** ${data.tables.join(", ")}`;
+  }
 
   // Final Output Table
   let finalTableMd = "_No rows returned._";
@@ -108,12 +131,17 @@ ${data.nlQuestion ? `**Natural Language Prompt:** "${data.nlQuestion}"\n` : ""}
 
 ---
 
-## 2. Step-by-Step Relational Execution Breakdown
+## 2. Database Schema (Chen ER Model Structure)
+${schemaMd ? `${schemaMd}\n` : `**Tables Involved:** ${data.tables.join(", ")}\n`}
+
+---
+
+## 3. Step-by-Step Relational Execution Breakdown
 ${stepsMd || "_No relational breakdown steps available._"}
 
 ---
 
-## 3. Physical Engine Pipeline Stages
+## 4. Physical Engine Pipeline Stages
 ${pipelineStepsMd}
 
 ---
@@ -165,8 +193,24 @@ export function generateTextReport(data: ReportExecutionData): string {
   out += `Executed SQL:\n  ${data.sql}\n\n`;
   out += `Summary:\n  ${data.explanation?.summary || "Query execution completed."}\n\n`;
 
-  // 2. Step-by-Step Relational Execution Breakdown
-  out += `2. STEP-BY-STEP RELATIONAL EXECUTION BREAKDOWN\n${subDivider}\n`;
+  // 2. Database Schema (Chen ER Model Structure)
+  out += `2. DATABASE SCHEMA (CHEN ER MODEL STRUCTURE)\n${subDivider}\n`;
+  if (data.schema && data.schema.length > 0) {
+    for (const t of data.schema) {
+      out += `  Table: ${t.name} (${t.rows?.length || 0} rows)\n`;
+      for (const c of t.columns) {
+        const pkStr = c.pk ? " [PRIMARY KEY]" : "";
+        const fkStr = c.fk ? ` [REFERENCES ${c.fk.table}(${c.fk.column})]` : "";
+        out += `    - ${c.name} (${c.type || "string"})${pkStr}${fkStr}\n`;
+      }
+    }
+  } else {
+    out += `  Tables: ${data.tables.join(", ")}\n`;
+  }
+  out += `\n`;
+
+  // 3. Step-by-Step Relational Execution Breakdown
+  out += `3. STEP-BY-STEP RELATIONAL EXECUTION BREAKDOWN\n${subDivider}\n`;
   for (const st of explanationSteps) {
     out += `[STEP ${st.stepNumber} - ${st.clause}] ${st.title}\n`;
     out += `  Description: ${st.description}\n`;
@@ -293,11 +337,34 @@ export async function downloadPdfReport(data: ReportExecutionData) {
   doc.text(sumLines, 14, currentY);
   currentY += sumLines.length * 4 + 6;
 
-  // 2. Step-by-Step Relational Execution Breakdown
+  // 2. Database Schema & Chen ER Diagram (if available)
+  if (data.erDiagramImage) {
+    if (currentY > 165) {
+      doc.addPage();
+      currentY = 20;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(20, 20, 20);
+    doc.text("2. Database Schema & Chen ER Diagram", 14, currentY);
+    currentY += 6;
+
+    const imgWidth = pageWidth - 28;
+    const imgHeight = Math.min(100, Math.round(imgWidth * 0.52));
+    try {
+      doc.addImage(data.erDiagramImage, "PNG", 14, currentY, imgWidth, imgHeight);
+      currentY += imgHeight + 8;
+    } catch (err) {
+      console.error("Failed to add ER diagram image to PDF:", err);
+      currentY += 4;
+    }
+  }
+
+  // 3. Step-by-Step Relational Execution Breakdown
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(20, 20, 20);
-  doc.text("2. Step-by-Step Relational Execution Breakdown", 14, currentY);
+  doc.text(data.erDiagramImage ? "3. Step-by-Step Relational Execution Breakdown" : "2. Step-by-Step Relational Execution Breakdown", 14, currentY);
   currentY += 6;
 
   for (const st of explanationSteps) {
@@ -457,6 +524,7 @@ export async function downloadDocxReport(data: ReportExecutionData) {
     TableRow: DocxTableRow,
     TableCell: DocxTableCell,
     WidthType,
+    ImageRun,
   } = await import("docx");
 
   const timeStr = data.timestamp || new Date().toLocaleString();
@@ -528,10 +596,42 @@ export async function downloadDocxReport(data: ReportExecutionData) {
     }),
   );
 
-  // 2. Step-by-Step Relational Execution Breakdown
+  // 2. Database Schema & Chen ER Diagram (if available)
+  if (data.erDiagramImage) {
+    try {
+      const base64Data = data.erDiagramImage.replace(/^data:image\/\w+;base64,/, "");
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      children.push(
+        new Paragraph({
+          text: "2. Database Schema & Chen ER Diagram",
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 250, after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new ImageRun({
+              type: "png",
+              data: bytes,
+              transformation: { width: 560, height: 300 },
+            }),
+          ],
+          spacing: { after: 250 },
+        }),
+      );
+    } catch (err) {
+      console.error("Failed to embed ER diagram in DOCX:", err);
+    }
+  }
+
+  // 3. Step-by-Step Relational Execution Breakdown
   children.push(
     new Paragraph({
-      text: "2. Step-by-Step Relational Execution Breakdown",
+      text: data.erDiagramImage ? "3. Step-by-Step Relational Execution Breakdown" : "2. Step-by-Step Relational Execution Breakdown",
       heading: HeadingLevel.HEADING_1,
       spacing: { before: 200, after: 100 },
     }),
