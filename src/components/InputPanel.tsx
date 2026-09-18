@@ -37,6 +37,7 @@ export function InputPanel({
   voiceFeedback = false,
   onToggleVoiceFeedback,
   onOpenCreateModal,
+  onOpenImportModal,
   onEditDataset,
   onDeleteDataset,
   onOpenGuide,
@@ -298,6 +299,21 @@ export function InputPanel({
                       <span>New Dataset</span>
                     </button>
                   )}
+                  {onOpenImportModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        onOpenImportModal();
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 hover:bg-[var(--surface-hover)] text-emerald-400 cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      <span>Import Dataset</span>
+                    </button>
+                  )}
                   {onResetDatabase && (
                     <button
                       type="button"
@@ -339,6 +355,7 @@ export function InputPanel({
             selectedDatasetId={selectedDatasetId}
             onChange={onDatasetChange}
             onOpenCreateModal={onOpenCreateModal}
+            onOpenImportModal={onOpenImportModal}
             onEditDataset={onEditDataset}
             onDeleteDataset={onDeleteDataset}
           />

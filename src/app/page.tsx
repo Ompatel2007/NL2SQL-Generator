@@ -5,6 +5,7 @@ import { AppHeader, type NavSection } from "@/components/AppHeader";
 import { ExplanationPanel } from "@/components/ExplanationPanel";
 import { InputPanel } from "@/components/InputPanel";
 import { DatasetModal } from "@/components/DatasetModal";
+import { ImportDatasetModal } from "@/components/ImportDatasetModal";
 import type { HistoryItem, Tab, ThemeId } from "@/components/nlSqlTypes";
 import { VisualizationPanel } from "@/components/VisualizationPanel";
 import { GuideModal } from "@/components/GuideModal";
@@ -40,6 +41,7 @@ export default function Home() {
   const [deletedBuiltinIds, setDeletedBuiltinIds] = useState<string[]>([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState("ecommerce");
   const [isDatasetModalOpen, setIsDatasetModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [datasetToEdit, setDatasetToEdit] = useState<Dataset | null>(null);
 
   const allDatasets = useMemo(() => {
@@ -676,6 +678,7 @@ export default function Home() {
               activeSchema={activeSchema}
               onDatasetChange={changeDataset}
               onOpenCreateModal={handleOpenCreateModal}
+              onOpenImportModal={() => setIsImportModalOpen(true)}
               onEditDataset={handleOpenEditModal}
               onDeleteDataset={handleDeleteDataset}
               onOpenGuide={() => setIsGuideModalOpen(true)}
@@ -877,6 +880,13 @@ export default function Home() {
         onCreateDataset={handleSaveDataset}
         onDeleteDataset={handleDeleteDataset}
         datasetToEdit={datasetToEdit}
+        dark={isDark}
+      />
+
+      <ImportDatasetModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportDataset={handleSaveDataset}
         dark={isDark}
       />
 

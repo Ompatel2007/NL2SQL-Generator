@@ -110,6 +110,7 @@ export interface InputPanelProps {
   voiceFeedback?: boolean;
   onToggleVoiceFeedback?: (enabled: boolean) => void;
   onOpenCreateModal?: () => void;
+  onOpenImportModal?: () => void;
   onEditDataset?: (dataset: Dataset) => void;
   onDeleteDataset?: (id: string) => void;
   onOpenGuide?: () => void;
