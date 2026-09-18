@@ -65,7 +65,10 @@ export function InputPanel({
     return () => clearTimeout(timer);
   }, [sql, activeSchema]);
 
-  const handleApplySuggestion = (textToInsert: string, range?: [number, number]) => {
+  const handleApplySuggestion = (
+    textToInsert: string,
+    range?: [number, number],
+  ) => {
     let newSql = sql;
     let nextCursor = sql.length;
 
@@ -73,7 +76,8 @@ export function InputPanel({
       newSql = sql.slice(0, range[0]) + textToInsert + sql.slice(range[1]);
       nextCursor = range[0] + textToInsert.length;
     } else {
-      const pos = cursorPos ?? (textareaRef.current?.selectionStart ?? sql.length);
+      const pos =
+        cursorPos ?? textareaRef.current?.selectionStart ?? sql.length;
       const beforeChar = pos > 0 ? sql[pos - 1] : "";
       const needsLeadingSpace =
         beforeChar &&
@@ -169,7 +173,8 @@ export function InputPanel({
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
-  const activeDataset = datasets.find((d) => d.id === selectedDatasetId) ?? datasets[0];
+  const activeDataset =
+    datasets.find((d) => d.id === selectedDatasetId) ?? datasets[0];
 
   return (
     <section
@@ -178,18 +183,23 @@ export function InputPanel({
         background: "var(--panel)",
         borderColor: "var(--border)",
         color: "var(--foreground)",
-        minHeight: minPanelHeight ? (typeof minPanelHeight === "number" ? `${minPanelHeight}px` : minPanelHeight) : "calc(100vh - 5.25rem)",
+        minHeight: minPanelHeight
+          ? typeof minPanelHeight === "number"
+            ? `${minPanelHeight}px`
+            : minPanelHeight
+          : "calc(100vh - 5.25rem)",
         maxHeight: maxPanelHeight ? `${maxPanelHeight}px` : undefined,
-        height: panelHeight ? (typeof panelHeight === "number" ? `${panelHeight}px` : panelHeight) : undefined,
+        height: panelHeight
+          ? typeof panelHeight === "number"
+            ? `${panelHeight}px`
+            : panelHeight
+          : undefined,
       }}
       aria-label="Input panel"
     >
       {/* Scrollable Main Area */}
       <div className="flex-1 overflow-x-hidden overflow-y-auto scrollbar-thin space-y-4 pr-1">
-        <div
-          ref={cardHeaderRef}
-          className="p-3 rounded-lg"
-        >
+        <div ref={cardHeaderRef} className="p-3 rounded-lg">
           <div className="flex items-center justify-between gap-2 mb-2.5">
             <label
               htmlFor="dataset"
@@ -200,7 +210,10 @@ export function InputPanel({
             </label>
 
             {/* 3-Dots Button on Reduced Width / Compression */}
-            <div className="flex items-center gap-1.5 shrink-0 relative" ref={moreMenuRef}>
+            <div
+              className="flex items-center gap-1.5 shrink-0 relative"
+              ref={moreMenuRef}
+            >
               {!isCompressed ? (
                 <div className="flex items-center gap-1.5">
                   {onEditDataset && activeDataset && (
@@ -255,7 +268,11 @@ export function InputPanel({
                   aria-label="Click for more options"
                   className="h-7 px-2 rounded-md  text-zinc-300 hover:bg-zinc-500/10 flex items-center justify-center transition-colors cursor-pointer text-xs font-medium"
                 >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                   </svg>
                 </button>
@@ -280,8 +297,18 @@ export function InputPanel({
                       }}
                       className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 hover:bg-[var(--surface-hover)] text-purple-400 cursor-pointer"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
                       </svg>
                       <span>Edit Dataset</span>
                     </button>
@@ -308,8 +335,18 @@ export function InputPanel({
                       }}
                       className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 hover:bg-[var(--surface-hover)] text-emerald-400 cursor-pointer"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                        />
                       </svg>
                       <span>Import Dataset</span>
                     </button>
@@ -323,8 +360,18 @@ export function InputPanel({
                       }}
                       className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 hover:bg-[var(--surface-hover)] text-rose-400 cursor-pointer"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
                       </svg>
                       <span>Reset Database</span>
                     </button>
@@ -334,14 +381,28 @@ export function InputPanel({
                       type="button"
                       onClick={() => {
                         setIsMoreMenuOpen(false);
-                        if (window.confirm(`Are you sure you want to delete dataset "${activeDataset.name}"?`)) {
+                        if (
+                          window.confirm(
+                            `Are you sure you want to delete dataset "${activeDataset.name}"?`,
+                          )
+                        ) {
                           onDeleteDataset(activeDataset.id);
                         }
                       }}
                       className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 hover:bg-[var(--surface-hover)] text-rose-400 cursor-pointer"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
                       </svg>
                       <span>Delete Dataset</span>
                     </button>
@@ -469,9 +530,21 @@ export function InputPanel({
               </>
             ) : (
               <span className="flex items-center gap-1.5">
-                <span className="text-sm font-semibold">Translate &amp; Run</span>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                <span className="text-sm font-semibold">
+                  Translate &amp; Run
+                </span>
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  />
                 </svg>
               </span>
             )}
@@ -488,9 +561,15 @@ export function InputPanel({
               }}
             >
               <div className="flex items-center justify-between">
-                <span className="font-semibold" style={{ color: "var(--foreground)" }}>
+                <span
+                  className="font-semibold"
+                  style={{ color: "var(--foreground)" }}
+                >
                   Confidence:{" "}
-                  <span className="font-mono font-bold" style={{ color: "var(--accent)" }}>
+                  <span
+                    className="font-mono font-bold"
+                    style={{ color: "var(--accent)" }}
+                  >
                     {(nlInfo.confidence * 100).toFixed(0)}%
                   </span>
                 </span>
@@ -501,16 +580,32 @@ export function InputPanel({
                   className="flex items-center gap-1 text-xs hover:underline cursor-pointer"
                   style={{ color: "var(--muted)" }}
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                    />
                   </svg>
                   <span>Read aloud</span>
                 </button>
               </div>
-              <p className="opacity-90 leading-relaxed" style={{ color: "var(--foreground)" }}>
+              <p
+                className="opacity-90 leading-relaxed"
+                style={{ color: "var(--foreground)" }}
+              >
                 {nlInfo.interpretation}
               </p>
-              <p className="font-mono opacity-70 text-xs" style={{ color: "var(--muted)" }}>
+              <p
+                className="font-mono opacity-70 text-xs"
+                style={{ color: "var(--muted)" }}
+              >
                 Generated by Gemini 2.5 Flash
               </p>
             </div>
@@ -532,9 +627,15 @@ export function InputPanel({
               onSqlChange(event.target.value);
               setCursorPos(event.target.selectionStart);
             }}
-            onClick={(event) => setCursorPos(event.currentTarget.selectionStart)}
-            onKeyUp={(event) => setCursorPos(event.currentTarget.selectionStart)}
-            onSelect={(event) => setCursorPos(event.currentTarget.selectionStart)}
+            onClick={(event) =>
+              setCursorPos(event.currentTarget.selectionStart)
+            }
+            onKeyUp={(event) =>
+              setCursorPos(event.currentTarget.selectionStart)
+            }
+            onSelect={(event) =>
+              setCursorPos(event.currentTarget.selectionStart)
+            }
             rows={4}
             spellCheck={false}
             className="w-full p-2.5 text-sm font-mono resize-y rounded-lg border focus:outline-none transition-colors"
@@ -555,12 +656,12 @@ export function InputPanel({
                 borderColor: error
                   ? "rgba(244, 63, 94, 0.4)"
                   : assistantResult.severity === "error"
-                  ? "rgba(244, 63, 94, 0.35)"
-                  : assistantResult.severity === "warning"
-                  ? "rgba(245, 158, 11, 0.35)"
-                  : assistantResult.severity === "incomplete"
-                  ? "rgba(59, 130, 246, 0.3)"
-                  : "rgba(16, 185, 129, 0.3)",
+                    ? "rgba(244, 63, 94, 0.35)"
+                    : assistantResult.severity === "warning"
+                      ? "rgba(245, 158, 11, 0.35)"
+                      : assistantResult.severity === "incomplete"
+                        ? "rgba(59, 130, 246, 0.3)"
+                        : "rgba(16, 185, 129, 0.3)",
               }}
             >
               {/* Diagnostic Header */}
@@ -568,15 +669,35 @@ export function InputPanel({
                 <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                   {error || assistantResult.severity === "error" ? (
                     <span className="flex items-center gap-1 text-rose-400 font-semibold shrink-0">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                       <span>Error:</span>
                     </span>
                   ) : assistantResult.severity === "warning" ? (
                     <span className="flex items-center gap-1 text-amber-400 font-semibold shrink-0">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
                       </svg>
                       <span>Warning:</span>
                     </span>
@@ -587,14 +708,24 @@ export function InputPanel({
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 text-emerald-400 font-semibold shrink-0">
-                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-3.5 h-3.5 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                       <span>Valid SQL</span>
                     </span>
                   )}
 
-                  <span className="truncate" style={{ color: "var(--foreground)" }}>
+                  <span style={{ color: "var(--foreground)" }}>
                     {error || assistantResult.what || assistantResult.title}
                   </span>
                 </div>
@@ -603,7 +734,12 @@ export function InputPanel({
                 {assistantResult.quickFix && !error && (
                   <button
                     type="button"
-                    onClick={() => handleApplySuggestion(assistantResult.quickFix!.replacement, assistantResult.quickFix!.range)}
+                    onClick={() =>
+                      handleApplySuggestion(
+                        assistantResult.quickFix!.replacement,
+                        assistantResult.quickFix!.range,
+                      )
+                    }
                     className="shrink-0 px-2 py-0.5 text-[11px] font-semibold rounded bg-[var(--accent)] text-[var(--accent-foreground)] hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
                     title={`Apply: ${assistantResult.quickFix.replacement}`}
                   >
@@ -613,25 +749,46 @@ export function InputPanel({
               </div>
 
               {/* Structured Explanation (WHAT, WHERE, SUGGESTION) when problem or suggestion exists */}
-              {(assistantResult.where || assistantResult.suggestionText) && !error && assistantResult.severity !== "valid" && (
-                <div
-                  className="text-[11px] leading-relaxed pt-1.5 border-t opacity-90 space-y-0.5"
-                  style={{ borderColor: "var(--border)", color: "var(--muted)" }}
-                >
-                  {assistantResult.where && (
-                    <div><span className="font-semibold text-zinc-300">WHERE:</span> {assistantResult.where}</div>
-                  )}
-                  {assistantResult.suggestionText && (
-                    <div><span className="font-semibold text-zinc-300">SUGGESTION:</span> {assistantResult.suggestionText}</div>
-                  )}
-                </div>
-              )}
+              {(assistantResult.where || assistantResult.suggestionText) &&
+                !error &&
+                assistantResult.severity !== "valid" && (
+                  <div
+                    className="text-[11px] leading-relaxed pt-1.5 border-t opacity-90 space-y-0.5"
+                    style={{
+                      borderColor: "var(--border)",
+                      color: "var(--muted)",
+                    }}
+                  >
+                    {assistantResult.where && (
+                      <div>
+                        <span className="font-semibold text-zinc-300">
+                          WHERE:
+                        </span>{" "}
+                        {assistantResult.where}
+                      </div>
+                    )}
+                    {assistantResult.suggestionText && (
+                      <div>
+                        <span className="font-semibold text-zinc-300">
+                          SUGGESTION:
+                        </span>{" "}
+                        {assistantResult.suggestionText}
+                      </div>
+                    )}
+                  </div>
+                )}
 
               {/* Context-Aware Suggestion Chips */}
               {assistantResult.suggestions.length > 0 && !error && (
-                <div className="pt-1.5 border-t space-y-1" style={{ borderColor: "var(--border)" }}>
+                <div
+                  className="pt-1.5 border-t space-y-1"
+                  style={{ borderColor: "var(--border)" }}
+                >
                   {assistantResult.suggestionsTitle && (
-                    <div className="text-[10px] font-semibold tracking-wider uppercase opacity-70" style={{ color: "var(--muted)" }}>
+                    <div
+                      className="text-[10px] font-semibold tracking-wider uppercase opacity-70"
+                      style={{ color: "var(--muted)" }}
+                    >
                       {assistantResult.suggestionsTitle}
                     </div>
                   )}
@@ -640,26 +797,35 @@ export function InputPanel({
                       <button
                         key={`${sugg.category}-${sugg.label}-${sIdx}`}
                         type="button"
-                        onClick={() => handleApplySuggestion(sugg.value, sugg.rangeToReplace)}
+                        onClick={() =>
+                          handleApplySuggestion(sugg.value, sugg.rangeToReplace)
+                        }
                         className="px-2 py-0.5 rounded text-[11px] font-mono border transition-all cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--surface-hover)] hover:scale-105 active:scale-95"
                         style={{
                           background: "var(--panel)",
                           borderColor: "var(--border)",
-                          color: sugg.category === "table"
-                            ? "var(--accent)"
-                            : sugg.category === "column"
-                            ? "#38bdf8"
-                            : sugg.category === "operator"
-                            ? "#fbbf24"
-                            : sugg.category === "value"
-                            ? "#34d399"
-                            : "var(--foreground)",
+                          color:
+                            sugg.category === "table"
+                              ? "var(--accent)"
+                              : sugg.category === "column"
+                                ? "#38bdf8"
+                                : sugg.category === "operator"
+                                  ? "#fbbf24"
+                                  : sugg.category === "value"
+                                    ? "#34d399"
+                                    : "var(--foreground)",
                         }}
-                        title={sugg.detail ? `${sugg.value} (${sugg.detail})` : `Insert ${sugg.value}`}
+                        title={
+                          sugg.detail
+                            ? `${sugg.value} (${sugg.detail})`
+                            : `Insert ${sugg.value}`
+                        }
                       >
                         <span>{sugg.label}</span>
                         {sugg.detail && (
-                          <span className="ml-1 opacity-50 text-[9px] font-sans">({sugg.detail})</span>
+                          <span className="ml-1 opacity-50 text-[9px] font-sans">
+                            ({sugg.detail})
+                          </span>
                         )}
                       </button>
                     ))}
@@ -757,7 +923,9 @@ export function InputPanel({
                   md += `---\n\n`;
                 });
 
-                const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+                const blob = new Blob([md], {
+                  type: "text/markdown;charset=utf-8",
+                });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
@@ -767,9 +935,15 @@ export function InputPanel({
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
               }}
-              disabled={history.filter((item) => item && (item.question?.trim() || item.sql?.trim())).length === 0}
+              disabled={
+                history.filter(
+                  (item) => item && (item.question?.trim() || item.sql?.trim()),
+                ).length === 0
+              }
               title={
-                history.filter((item) => item && (item.question?.trim() || item.sql?.trim())).length === 0
+                history.filter(
+                  (item) => item && (item.question?.trim() || item.sql?.trim()),
+                ).length === 0
                   ? "No query history available to download"
                   : "Download last 5 query history entries"
               }
@@ -781,20 +955,34 @@ export function InputPanel({
               }}
               aria-label="Download Query History"
             >
-              <svg className="w-3.5 h-3.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <svg
+                className="w-3.5 h-3.5 opacity-80"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
               </svg>
               {/* <span className="text-xs font-mono font-bold">↓</span> */}
             </button>
           </div>
-          {history.filter((item) => item && (item.question?.trim() || item.sql?.trim())).length === 0 ? (
+          {history.filter(
+            (item) => item && (item.question?.trim() || item.sql?.trim()),
+          ).length === 0 ? (
             <p className="text-xs opacity-60" style={{ color: "var(--muted)" }}>
               No query history recorded yet.
             </p>
           ) : (
             <ul className="space-y-2">
               {history
-                .filter((item) => item && (item.question?.trim() || item.sql?.trim()))
+                .filter(
+                  (item) => item && (item.question?.trim() || item.sql?.trim()),
+                )
                 .slice(0, 5)
                 .map((item) => (
                   <li key={item.id}>
@@ -809,7 +997,8 @@ export function InputPanel({
                     >
                       <div className="flex items-center justify-between text-xs font-mono opacity-80 mb-1">
                         <span style={{ color: "var(--muted)" }}>
-                          {item.time} &middot; {item.rows} row{item.rows !== 1 ? "s" : ""}
+                          {item.time} &middot; {item.rows} row
+                          {item.rows !== 1 ? "s" : ""}
                         </span>
                         {item.statementType && (
                           <span
