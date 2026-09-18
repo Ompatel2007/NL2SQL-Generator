@@ -36,16 +36,16 @@ export default function RootLayout({
               try {
                 let saved = localStorage.getItem('nlp-sql-theme') || 'slate';
                 const legacyMap = {
-                  'colorful-dark': 'eclipse',
-                  'blue-dark': 'lazuli',
+                  // 'colorful-dark': 'eclipse',
+                  // 'blue-dark': 'lazuli',
                   'blue-light': 'pearl',
                   'greyscale': 'slate',
-                  'high-contrast': 'volt',
+                  // 'high-contrast': 'volt',
                   'dark': 'slate',
                   'light': 'pearl'
                 };
                 if (legacyMap[saved]) saved = legacyMap[saved];
-                const validThemes = ['slate', 'pearl', 'eclipse', 'lazuli', 'volt'];
+                const validThemes = ['slate', 'pearl'/*, 'eclipse', 'lazuli', 'volt'*/];
                 const theme = validThemes.includes(saved) ? saved : 'slate';
                 
                 document.documentElement.setAttribute('data-theme', theme);

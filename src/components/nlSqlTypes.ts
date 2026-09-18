@@ -25,7 +25,7 @@ export interface HistoryItem {
 
 export type Tab = "result" | "schema" | "explanation" | "theory";
 
-export type ThemeId = "slate" | "pearl" | "eclipse" | "lazuli" | "volt";
+export type ThemeId = "slate" | "pearl"; /* | "eclipse" | "lazuli" | "volt" */
 
 export interface ThemeConfig {
   id: ThemeId;
@@ -52,6 +52,7 @@ export const THEME_CONFIGS: ThemeConfig[] = [
     isDark: false,
     swatches: ["#f8fafc", "#ffffff", "#4f46e5", "#0f172a"],
   },
+  /*
   {
     id: "eclipse",
     name: "3. Eclipse",
@@ -73,6 +74,7 @@ export const THEME_CONFIGS: ThemeConfig[] = [
     isDark: true,
     swatches: ["#000000", "#ffff00", "#00ff66", "#ff3333"],
   },
+  */
 ];
 
 

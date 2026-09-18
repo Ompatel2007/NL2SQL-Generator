@@ -202,7 +202,7 @@ export function HelpView({ onBackToWorkspace }: HelpViewProps) {
       title: "Switching Day/Night Mode",
       whatItDoes: "Changes the color palette and dark/light mode of the application.",
       whatToDo: "Click the 'Theme' button in the top-right corner of the top navigation bar and select a theme.",
-      controls: "The 'Theme' dropdown menu in the header (Slate, Pearl, Eclipse, Lazuli, Volt).",
+      controls: "The 'Theme' dropdown menu in the header (Slate, Pearl).",
       processing: "Updates CSS custom variables (`data-theme` attribute on the root element) and persists your preference in `localStorage`.",
       expectedOutput: "The interface updates its appearance immediately, with 'Pearl' providing light mode and 'Slate' providing the default dark monochrome style.",
     },

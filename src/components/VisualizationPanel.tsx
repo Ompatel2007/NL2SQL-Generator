@@ -8,7 +8,9 @@ import { ChenERDiagram } from "./ChenERDiagram";
 import { QueryExplanationView } from "./QueryExplanationView";
 
 function getStageBadgeClass(stage: string, theme: ThemeId = "slate"): string {
-  if (theme === "volt") {
+  /*
+  // Volt theme badges
+  if ((theme as string) === "volt") {
     switch (stage) {
       case "MUTATION":
       case "DELETE":
@@ -24,12 +26,15 @@ function getStageBadgeClass(stage: string, theme: ThemeId = "slate"): string {
         return "bg-black text-[#ffff00] border-2 border-[#ffff00] font-bold";
     }
   }
+  */
 
   if (theme === "slate") {
     return "bg-zinc-800 text-zinc-100 border border-zinc-700 font-semibold";
   }
 
-  if (theme === "lazuli") {
+  /*
+  // Lazuli theme badges
+  if ((theme as string) === "lazuli") {
     switch (stage) {
       case "FROM":
       case "JOIN":
@@ -44,6 +49,7 @@ function getStageBadgeClass(stage: string, theme: ThemeId = "slate"): string {
         return "bg-slate-700 text-slate-100 border border-slate-600";
     }
   }
+  */
 
   if (theme === "pearl") {
     switch (stage) {
@@ -63,26 +69,7 @@ function getStageBadgeClass(stage: string, theme: ThemeId = "slate"): string {
     }
   }
 
-  // Default: Eclipse (matching user screenshot)
-  const COLORFUL_MAP: Record<string, string> = {
-    PARSER: "bg-blue-600 text-white shadow-xs",
-    CATALOG: "bg-purple-600 text-white shadow-xs",
-    CONSTRAINT: "bg-amber-600 text-white shadow-xs",
-    MUTATION: "bg-rose-600 text-white shadow-xs",
-    COMMIT: "bg-emerald-600 text-white shadow-xs",
-    SCHEMA: "bg-indigo-600 text-white shadow-xs",
-    FROM: "bg-sky-500 text-white shadow-xs",
-    JOIN: "bg-cyan-500 text-white shadow-xs",
-    WHERE: "bg-amber-500 text-white shadow-xs",
-    "GROUP BY": "bg-violet-500 text-white shadow-xs",
-    DISTINCT: "bg-indigo-500 text-white shadow-xs",
-    HAVING: "bg-fuchsia-500 text-white shadow-xs",
-    AGGREGATE: "bg-emerald-500 text-white shadow-xs",
-    SELECT: "bg-emerald-500 text-white shadow-xs",
-    "ORDER BY": "bg-orange-500 text-white shadow-xs",
-    LIMIT: "bg-rose-500 text-white shadow-xs",
-  };
-  return COLORFUL_MAP[stage] ?? "bg-slate-600 text-white";
+  return "bg-zinc-800 text-zinc-100 border border-zinc-700 font-semibold";
 }
 
 interface VisualizationPanelProps {

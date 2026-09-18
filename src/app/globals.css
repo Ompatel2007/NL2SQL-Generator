@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 /* =========================================================================
-   THEME DESIGN SYSTEM (Slate, Pearl, Eclipse, Lazuli, Volt)
+   THEME DESIGN SYSTEM (Slate, Pearl)
+   [Commented out: Eclipse, Lazuli, Volt]
    ========================================================================= */
 
 /* 1. Slate (Default Monochrome Greyscale Dark) */
@@ -47,7 +48,8 @@ html[data-theme="pearl"],
   --scrollbar-thumb-hover: #4338ca;
 }
 
-/* 3. Eclipse (Colorful Dark) */
+/*
+3. Eclipse (Colorful Dark)
 html[data-theme="eclipse"],
 .theme-eclipse {
   --background: #09090b;
@@ -68,7 +70,7 @@ html[data-theme="eclipse"],
   --scrollbar-thumb-hover: #a78bfa;
 }
 
-/* 4. Lazuli (Original Blue Dark) */
+4. Lazuli (Original Blue Dark)
 html[data-theme="lazuli"],
 .theme-lazuli {
   --background: #0b1120;
@@ -89,7 +91,7 @@ html[data-theme="lazuli"],
   --scrollbar-thumb-hover: #60a5fa;
 }
 
-/* 5. Volt (High Contrast Black, Yellow, Red, Green) */
+5. Volt (High Contrast Black, Yellow, Red, Green)
 html[data-theme="volt"],
 .theme-volt {
   --background: #000000;
@@ -110,7 +112,7 @@ html[data-theme="volt"],
   --scrollbar-thumb-hover: #fef08a;
 }
 
-/* High contrast specific style overrides */
+High contrast specific style overrides
 .theme-volt .panel {
   border-width: 1.5px;
   border-color: #ffff00;
@@ -124,6 +126,7 @@ html[data-theme="volt"],
 .theme-volt code {
   border-color: #ffff00;
 }
+*/
 
 @theme inline {
   --color-background: var(--background);

@@ -164,16 +164,16 @@ export default function Home() {
     try {
       let savedTheme = localStorage.getItem("nlp-sql-theme") || "slate";
       const legacyMap: Record<string, ThemeId> = {
-        "colorful-dark": "eclipse",
-        "blue-dark": "lazuli",
+        // "colorful-dark": "eclipse",
+        // "blue-dark": "lazuli",
         "blue-light": "pearl",
         "greyscale": "slate",
-        "high-contrast": "volt",
+        // "high-contrast": "volt",
         "dark": "slate",
         "light": "pearl",
       };
       if (legacyMap[savedTheme]) savedTheme = legacyMap[savedTheme];
-      const valid: ThemeId[] = ["slate", "pearl", "eclipse", "lazuli", "volt"];
+      const valid: ThemeId[] = ["slate", "pearl"]; // ["eclipse", "lazuli", "volt"] commented out
       const activeTheme = valid.includes(savedTheme as ThemeId)
         ? (savedTheme as ThemeId)
         : "slate";
