@@ -66,13 +66,13 @@ function DBCanvas() {
 
     function getNodeColor(n: Node, alpha: number): string {
       const cx = n.x / W;
-      if (cx < 0.42) return `rgba(0,220,180,${alpha})`;
-      if (cx > 0.58) return `rgba(200,80,255,${alpha})`;
+      if (cx < 0.44) return `rgba(255,255,255,${alpha})`;
+      if (cx > 0.56) return `rgba(200,80,255,${alpha})`;
       // blend zone
-      const t = (cx - 0.42) / 0.16;
-      const r = Math.round(0 + t * 200);
-      const g = Math.round(220 - t * 140);
-      const b = Math.round(180 + t * 75);
+      const t = (cx - 0.44) / 0.12;
+      const r = Math.round(255 - t * 55);
+      const g = Math.round(255 - t * 175);
+      const b = 255;
       return `rgba(${r},${g},${b},${alpha})`;
     }
 
@@ -88,11 +88,11 @@ function DBCanvas() {
             (col % 2 ? (size * Math.sqrt(3)) / 2 : 0);
           const cx = x / W;
           let color: string;
-          if (cx < 0.42) color = "rgba(0,220,180,0.04)";
-          else if (cx > 0.58) color = "rgba(200,80,255,0.04)";
+          if (cx < 0.44) color = "rgba(255,255,255,0.035)";
+          else if (cx > 0.56) color = "rgba(200,80,255,0.04)";
           else {
-            const t = (cx - 0.42) / 0.16;
-            color = `rgba(${Math.round(t * 200)},${Math.round(220 - t * 140)},${Math.round(180 + t * 75)},0.04)`;
+            const t = (cx - 0.44) / 0.12;
+            color = `rgba(${Math.round(255 - t * 55)},${Math.round(255 - t * 175)},255,0.035)`;
           }
           ctx.beginPath();
           for (let i = 0; i < 6; i++) {
@@ -113,18 +113,18 @@ function DBCanvas() {
     function draw() {
       ctx.clearRect(0, 0, W, H);
 
-      // Split background gradients
+      // Split background gradients (rich dark theme inspired by M# 2026)
       const leftGrad = ctx.createLinearGradient(0, 0, W * 0.5, H);
-      leftGrad.addColorStop(0, "#010612");
-      leftGrad.addColorStop(0.5, "#020b1a");
-      leftGrad.addColorStop(1, "#00040a");
+      leftGrad.addColorStop(0, "#080d1a");
+      leftGrad.addColorStop(0.5, "#0c1426");
+      leftGrad.addColorStop(1, "#060a14");
       ctx.fillStyle = leftGrad;
       ctx.fillRect(0, 0, W * 0.5, H);
 
       const rightGrad = ctx.createLinearGradient(W * 0.5, 0, W, H);
-      rightGrad.addColorStop(0, "#09010e");
-      rightGrad.addColorStop(0.5, "#05010a");
-      rightGrad.addColorStop(1, "#020005");
+      rightGrad.addColorStop(0, "#130924");
+      rightGrad.addColorStop(0.5, "#1a0b30");
+      rightGrad.addColorStop(1, "#0d0519");
       ctx.fillStyle = rightGrad;
       ctx.fillRect(W * 0.5, 0, W * 0.5, H);
 
@@ -144,9 +144,9 @@ function DBCanvas() {
             const midX = (nodes[i].x + nodes[j].x) / 2;
             const cx = midX / W;
             let color: string;
-            if (cx < 0.42) color = `rgba(0,220,180,${alpha})`;
-            else if (cx > 0.58) color = `rgba(200,80,255,${alpha})`;
-            else color = `rgba(120,160,220,${alpha * 0.8})`;
+            if (cx < 0.44) color = `rgba(255,255,255,${alpha * 0.6})`;
+            else if (cx > 0.56) color = `rgba(200,80,255,${alpha})`;
+            else color = `rgba(225,180,255,${alpha * 0.8})`;
             ctx.beginPath();
             ctx.moveTo(nodes[i].x, nodes[i].y);
             ctx.lineTo(nodes[j].x, nodes[j].y);
@@ -189,10 +189,10 @@ function DBCanvas() {
 
       // Center blend glow
       const blendGrad = ctx.createLinearGradient(W * 0.38, 0, W * 0.62, 0);
-      blendGrad.addColorStop(0, "rgba(0,220,180,0)");
-      blendGrad.addColorStop(0.3, "rgba(0,180,200,0.04)");
-      blendGrad.addColorStop(0.5, "rgba(100,120,240,0.07)");
-      blendGrad.addColorStop(0.7, "rgba(180,80,255,0.04)");
+      blendGrad.addColorStop(0, "rgba(255,255,255,0)");
+      blendGrad.addColorStop(0.3, "rgba(255,255,255,0.03)");
+      blendGrad.addColorStop(0.5, "rgba(180,140,255,0.06)");
+      blendGrad.addColorStop(0.7, "rgba(190,80,255,0.04)");
       blendGrad.addColorStop(1, "rgba(200,80,255,0)");
       ctx.fillStyle = blendGrad;
       ctx.fillRect(W * 0.38, 0, W * 0.24, H);
@@ -501,7 +501,7 @@ function Divider() {
         className="divider-glow w-full flex-1"
         style={{
           background:
-            "linear-gradient(to bottom, rgba(0,220,180,0.1) 0%, rgba(80,160,255,0.7) 30%, rgba(255,255,255,0.9) 50%, rgba(180,80,255,0.7) 70%, rgba(200,80,255,0.1) 100%)",
+            "linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.75) 30%, rgba(255,255,255,0.95) 50%, rgba(180,80,255,0.7) 70%, rgba(200,80,255,0.1) 100%)",
         }}
       />
 
@@ -517,13 +517,13 @@ function Divider() {
             borderRadius: "50%",
             background:
               pct < 50
-                ? "rgba(0,220,180,0.9)"
+                ? "rgba(255,255,255,0.95)"
                 : pct > 50
                   ? "rgba(200,80,255,0.9)"
-                  : "rgba(140,120,255,0.9)",
+                  : "rgba(220,180,255,0.9)",
             boxShadow:
               pct < 50
-                ? "0 0 12px rgba(0,220,180,0.8)"
+                ? "0 0 12px rgba(255,255,255,0.9)"
                 : "0 0 12px rgba(200,80,255,0.8)",
             transform: "translate(-50%)",
             animationDelay: `${pct * 0.08}s`,
@@ -544,7 +544,7 @@ function Divider() {
               y1={`${pct}%`}
               x2="0"
               y2={`${pct - 5 + i * 2}%`}
-              stroke="rgba(0,220,180,0.3)"
+              stroke="rgba(255,255,255,0.35)"
               strokeWidth="1"
               strokeDasharray="4 4"
               className="connection-line"
@@ -571,12 +571,12 @@ function Divider() {
 // ─── Flow Particles ───────────────────────────────────────────────────────────
 
 const PARTICLES = [
-  { id: 0, left: "8%", duration: "8.4s", delay: "0.5s", size: 1.8, color: "rgba(0,220,180,0.6)" },
-  { id: 1, left: "16%", duration: "11.2s", delay: "2.1s", size: 2.4, color: "rgba(0,220,180,0.6)" },
-  { id: 2, left: "24%", duration: "7.6s", delay: "1.4s", size: 1.5, color: "rgba(0,220,180,0.6)" },
-  { id: 3, left: "32%", duration: "12.8s", delay: "3.7s", size: 2.9, color: "rgba(0,220,180,0.6)" },
-  { id: 4, left: "40%", duration: "9.5s", delay: "0.9s", size: 1.7, color: "rgba(0,220,180,0.6)" },
-  { id: 5, left: "48%", duration: "10.4s", delay: "4.2s", size: 2.2, color: "rgba(0,220,180,0.6)" },
+  { id: 0, left: "8%", duration: "8.4s", delay: "0.5s", size: 1.8, color: "rgba(73, 151, 235, 0.75)" },
+  { id: 1, left: "16%", duration: "11.2s", delay: "2.1s", size: 2.4, color: "rgba(73, 151, 235, 0.75)" },
+  { id: 2, left: "24%", duration: "7.6s", delay: "1.4s", size: 1.5, color: "rgba(73, 151, 235, 0.75)" },
+  { id: 3, left: "32%", duration: "12.8s", delay: "3.7s", size: 2.9, color: "rgba(73, 151, 235, 0.75)" },
+  { id: 4, left: "40%", duration: "9.5s", delay: "0.9s", size: 1.7, color: "rgba(73, 151, 235, 0.75)" },
+  { id: 5, left: "48%", duration: "10.4s", delay: "4.2s", size: 2.2, color: "rgba(73, 151, 235, 0.75)" },
   { id: 6, left: "52%", duration: "8.9s", delay: "1.8s", size: 2.6, color: "rgba(200,80,255,0.6)" },
   { id: 7, left: "60%", duration: "13.1s", delay: "3.2s", size: 1.6, color: "rgba(200,80,255,0.6)" },
   { id: 8, left: "68%", duration: "7.8s", delay: "0.3s", size: 2.1, color: "rgba(200,80,255,0.6)" },
@@ -633,7 +633,7 @@ export default function App() {
 
   return (
     <div
-      className="relative w-full h-screen overflow-hidden select-none bg-[#02040a]"
+      className="relative w-full h-screen overflow-hidden select-none bg-[#090b14]"
       style={{ fontFamily: "'Outfit', var(--font-geist-sans), sans-serif" }}
     >
       {/* Background canvas */}
@@ -672,39 +672,39 @@ export default function App() {
             opacity: view === "plsql" ? 0 : 1,
           }}
         >
-          {/* Color tint overlay */}
+          {/* Rich dark midnight slate tint overlay (inspired by M# 2026 dark atmosphere) */}
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ backgroundColor: "#46000D", opacity: 0.35 }}
+            style={{ backgroundColor: "#0b1224", opacity: 0.45 }}
           />
 
-          {/* Full-section blurred background code stream */}
+          {/* Full-section blurred background code stream in white */}
           <div
             className="absolute inset-0 pointer-events-none overflow-hidden"
-            style={{ filter: "blur(1.5px)", opacity: 0.22 }}
+            style={{ filter: "blur(1.5px)", opacity: 0.32 }}
           >
-            <BackgroundCode lines={SQL_LINES} color="#00f5c4" />
+            <BackgroundCode lines={SQL_LINES} color="#FFFFFF" />
           </div>
 
-          {/* Subtle vignette */}
+          {/* Atmospheric subtle radial glow */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                "radial-gradient(ellipse at 30% 50%, rgba(0,180,140,0.07) 0%, transparent 70%)",
+                "radial-gradient(ellipse at 30% 50%, rgba(99,102,241,0.12) 0%, transparent 70%)",
             }}
           />
 
-          {/* Foreground content (Clean without foreground terminal) */}
+          {/* Foreground content in pure white */}
           <div className="relative z-10 w-full max-w-lg space-y-6 md:space-y-8 flex flex-col items-center">
             {/* Badge */}
             <div className="flex justify-center">
               <span
                 className="text-xs tracking-[0.2em] uppercase px-4 py-1.5 rounded-full border backdrop-blur-md"
                 style={{
-                  color: "#00f5c4",
-                  borderColor: "rgba(0,245,196,0.3)",
-                  background: "rgba(0,245,196,0.08)",
+                  color: "#FFFFFF",
+                  borderColor: "rgba(255,255,255,0.25)",
+                  background: "rgba(255,255,255,0.06)",
                   fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
                 }}
               >
@@ -719,44 +719,17 @@ export default function App() {
                 className="font-bold leading-none tracking-tight"
                 style={{
                   fontSize: "clamp(3.5rem, 8vw, 6rem)",
-                  color: "#00f5c4",
+                  color: "#FFFFFF",
                   textShadow:
-                    "0 0 60px rgba(0,245,196,0.4), 0 0 120px rgba(0,245,196,0.15)",
+                    "0 0 50px rgba(255,255,255,0.45), 0 0 100px rgba(255,255,255,0.18)",
                 }}
               />
               <p
                 className="mt-3 text-sm md:text-base font-light tracking-wide"
-                style={{ color: "rgba(0,220,180,0.8)" }}
+                style={{ color: "rgba(255,255,255,0.85)" }}
               >
                 Query. Filter. Aggregate. Retrieve.
               </p>
-            </div>
-
-            {/* Stats */}
-            <div className="flex justify-center gap-6 text-center pt-2">
-              {[
-                ["ANSI", "Standard"],
-                ["ACID", "Compliant"],
-                ["~50yr", "Legacy"],
-              ].map(([val, lbl]) => (
-                <div key={val}>
-                  <div
-                    className="text-lg sm:text-xl font-semibold"
-                    style={{
-                      color: "#00f5c4",
-                      fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
-                    }}
-                  >
-                    {val}
-                  </div>
-                  <div
-                    className="text-xs mt-0.5"
-                    style={{ color: "rgba(0,180,140,0.6)" }}
-                  >
-                    {lbl}
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
@@ -784,16 +757,16 @@ export default function App() {
             opacity: view === "sql" ? 0 : 1,
           }}
         >
-          {/* Color tint overlay */}
+          {/* Rich dark purple overlay */}
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ backgroundColor: "#080B38", opacity: 0.35 }}
+            style={{ backgroundColor: "#140a26", opacity: 0.45 }}
           />
 
           {/* Full-section blurred background code stream */}
           <div
             className="absolute inset-0 pointer-events-none overflow-hidden"
-            style={{ filter: "blur(1.5px)", opacity: 0.22 }}
+            style={{ filter: "blur(1.5px)", opacity: 0.32 }}
           >
             <BackgroundCode lines={PLSQL_LINES} color="#f06bff" />
           </div>
@@ -802,11 +775,11 @@ export default function App() {
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                "radial-gradient(ellipse at 70% 50%, rgba(160,60,220,0.07) 0%, transparent 70%)",
+                "radial-gradient(ellipse at 70% 50%, rgba(168,85,247,0.12) 0%, transparent 70%)",
             }}
           />
 
-          {/* Foreground content (Clean without foreground terminal) */}
+          {/* Foreground content */}
           <div className="relative z-10 w-full max-w-lg space-y-6 md:space-y-8 flex flex-col items-center">
             {/* Badge */}
             <div className="flex justify-center">
@@ -842,33 +815,6 @@ export default function App() {
                 Procedures. Triggers. Control Flow.
               </p>
             </div>
-
-            {/* Stats */}
-            <div className="flex justify-center gap-6 text-center pt-2">
-              {[
-                ["Oracle", "Native"],
-                ["Block", "Structured"],
-                ["Ext.", "of SQL"],
-              ].map(([val, lbl]) => (
-                <div key={val}>
-                  <div
-                    className="text-lg sm:text-xl font-semibold"
-                    style={{
-                      color: "#f06bff",
-                      fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
-                    }}
-                  >
-                    {val}
-                  </div>
-                  <div
-                    className="text-xs mt-0.5"
-                    style={{ color: "rgba(180,60,200,0.6)" }}
-                  >
-                    {lbl}
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>
@@ -883,26 +829,27 @@ export default function App() {
           href="/sql"
           className="flex-1 flex items-center justify-center gap-3 text-sm font-semibold tracking-widest uppercase transition-all duration-300 group"
           style={{
-            background: "rgba(0,20,18,0.85)",
-            borderTop: "1px solid rgba(0,220,180,0.3)",
-            color: "#00f5c4",
+            background: "rgba(11,18,36,0.88)",
+            borderTop: "1px solid rgba(255,255,255,0.2)",
+            color: "#FFFFFF",
             fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
             backdropFilter: "blur(16px)",
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.background =
-              "rgba(0,220,180,0.14)";
+              "rgba(255,255,255,0.12)";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLElement).style.background =
-              "rgba(0,20,18,0.85)";
+              "rgba(11,18,36,0.88)";
           }}
         >
           <span
             className="w-6 h-6 rounded-sm flex items-center justify-center text-xs"
             style={{
-              background: "rgba(0,220,180,0.15)",
-              border: "1px solid rgba(0,220,180,0.3)",
+              background: "rgba(255,255,255,0.12)",
+              border: "1px solid rgba(255,255,255,0.25)",
+              color: "#FFFFFF",
             }}
           >
             ⬡
@@ -913,12 +860,12 @@ export default function App() {
             height="14"
             viewBox="0 0 14 14"
             fill="none"
-            style={{ opacity: 0.8 }}
+            style={{ opacity: 0.9 }}
             className="group-hover:translate-x-1 transition-transform"
           >
             <path
               d="M7 2l5 5-5 5M2 7h10"
-              stroke="currentColor"
+              stroke="#FFFFFF"
               strokeWidth="1.5"
               strokeLinecap="round"
             />
@@ -931,17 +878,17 @@ export default function App() {
           style={{
             width: "3px",
             background:
-              "linear-gradient(to bottom, rgba(80,160,220,0.5), rgba(140,100,255,0.5))",
+              "linear-gradient(to bottom, rgba(255,255,255,0.4), rgba(168,85,247,0.5))",
           }}
         />
 
-        {/* PL/SQL Button - toggles view / notification (does nothing currently) */}
+        {/* PL/SQL Button - toggles view / notification */}
         <button
           type="button"
           onClick={handlePlSqlClick}
           className="flex-1 flex items-center justify-center gap-3 text-sm font-semibold tracking-widest uppercase transition-all duration-300 cursor-pointer group"
           style={{
-            background: "rgba(14,2,18,0.85)",
+            background: "rgba(20,10,38,0.88)",
             borderTop: "1px solid rgba(200,80,255,0.3)",
             color: "#f06bff",
             fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
@@ -949,11 +896,11 @@ export default function App() {
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background =
-              "rgba(200,80,255,0.14)";
+              "rgba(200,80,255,0.15)";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background =
-              "rgba(14,2,18,0.85)";
+              "rgba(20,10,38,0.88)";
           }}
         >
           <svg
