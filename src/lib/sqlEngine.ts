@@ -117,10 +117,10 @@ export interface ParsedAlterTableQuery {
   type: "ALTER TABLE";
   table: string;
   action:
-    | { type: "ADD_COLUMN"; column: Column }
-    | { type: "DROP_COLUMN"; columnName: string }
-    | { type: "RENAME_TABLE"; newTableName: string }
-    | { type: "RENAME_COLUMN"; oldColumnName: string; newColumnName: string };
+  | { type: "ADD_COLUMN"; column: Column }
+  | { type: "DROP_COLUMN"; columnName: string }
+  | { type: "RENAME_TABLE"; newTableName: string }
+  | { type: "RENAME_COLUMN"; oldColumnName: string; newColumnName: string };
 }
 
 export interface ParsedTruncateQuery {
@@ -359,7 +359,7 @@ export function parseSQL(sql: string, schema: Table[] = SCHEMA): ParsedQuery {
       const isKnownTbl = schema.some((t) => t.name.toLowerCase() === baseW.toLowerCase());
       const isKnownCol = schema.some((t) => t.columns.some((c) => c.name.toLowerCase() === baseW.toLowerCase()));
       if (!isKnownTbl && !isKnownCol) {
-        throw new Error(`Unexpected gibberish token "${baseW}" in SQL statement.`);
+        throw new Error(`Unexpected token "${baseW}" in SQL statement.`);
       }
     }
   }
@@ -508,10 +508,10 @@ export function validateSQLAgainstSchema(
       (column === "*"
         ? allowWildcard
         : Boolean(
-            table?.columns.some(
-              (tableColumn) => tableColumn.name.toLowerCase() === column,
-            ),
-          ))
+          table?.columns.some(
+            (tableColumn) => tableColumn.name.toLowerCase() === column,
+          ),
+        ))
     );
   };
 
@@ -619,7 +619,7 @@ function parseSelect(q: string, schema: Table[]): ParsedSelectQuery {
     }
     if (isGibberish(aliasCandidate)) {
       throw new Error(
-        `Unexpected gibberish token "${aliasCandidate}" after table "${parsed.from}".`,
+        `Unexpected token "${aliasCandidate}" after table "${parsed.from}".`,
       );
     }
     const closestKw = findClosestKeyword(aliasCandidate);
@@ -628,9 +628,9 @@ function parseSelect(q: string, schema: Table[]): ParsedSelectQuery {
         `Unexpected token "${aliasCandidate}" after table "${parsed.from}". Did you mean "${closestKw}"?`,
       );
     }
-    // If identifier is not preceded by AS and not used as qualifier:
+    // If multi-character identifier is not preceded by AS and not used as qualifier:
     const isReferenced = q.toLowerCase().includes(`${aliasCandidate.toLowerCase()}.`);
-    if (!isReferenced) {
+    if (aliasCandidate.length > 3 && !isReferenced) {
       throw new Error(
         `Unexpected token "${aliasCandidate}" after table "${parsed.from}". If this is an alias, use "AS ${aliasCandidate}". Otherwise, remove "${aliasCandidate}".`,
       );
@@ -656,7 +656,7 @@ function parseSelect(q: string, schema: Table[]): ParsedSelectQuery {
     }
     if (isGibberish(aliasCandidate)) {
       throw new Error(
-        `Unexpected gibberish token "${aliasCandidate}" after AS in FROM clause.`,
+        `Unexpected token "${aliasCandidate}" after AS in FROM clause.`,
       );
     }
     const closestKw = findClosestKeyword(aliasCandidate);
@@ -1425,9 +1425,9 @@ function executeSelect(
       distinctRows.push(
         p.groupBy
           ? {
-              [colName(p.groupBy)]: resolveCol(row, p.groupBy) ?? "",
-              [colName(distinctAggregate.arg)]: value ?? "",
-            }
+            [colName(p.groupBy)]: resolveCol(row, p.groupBy) ?? "",
+            [colName(distinctAggregate.arg)]: value ?? "",
+          }
           : { [colName(distinctAggregate.arg)]: value ?? "" },
       );
     }
