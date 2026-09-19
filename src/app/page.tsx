@@ -1,378 +1,988 @@
 "use client";
 
-import { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-export default function LandingPage() {
-  const [hoveredSide, setHoveredSide] = useState<"sql" | "plsql" | null>(null);
-  const [plsqlNotice, setPlsqlNotice] = useState(false);
+// ─── DB Network Canvas Background ───────────────────────────────────────────
+
+interface Node {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  r: number;
+  side: "left" | "right" | "both";
+  pulse: number;
+  pulseSpeed: number;
+}
+
+function DBCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number>(0);
+  const nodesRef = useRef<Node[]>([]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    let W = 0,
+      H = 0;
+
+    function resize() {
+      W = canvas!.offsetWidth;
+      H = canvas!.offsetHeight;
+      canvas!.width = W;
+      canvas!.height = H;
+      initNodes();
+    }
+
+    function initNodes() {
+      const count = Math.floor((W * H) / 14000);
+      nodesRef.current = Array.from({ length: count }, () => {
+        const side =
+          Math.random() < 0.45
+            ? "left"
+            : Math.random() < 0.55
+              ? "right"
+              : "both";
+        const x =
+          side === "left"
+            ? Math.random() * W * 0.52
+            : side === "right"
+              ? W * 0.48 + Math.random() * W * 0.52
+              : Math.random() * W;
+        return {
+          x,
+          y: Math.random() * H,
+          vx: (Math.random() - 0.5) * 0.25,
+          vy: (Math.random() - 0.5) * 0.25,
+          r: 2 + Math.random() * 3.5,
+          side,
+          pulse: Math.random() * Math.PI * 2,
+          pulseSpeed: 0.01 + Math.random() * 0.02,
+        };
+      });
+    }
+
+    function getNodeColor(n: Node, alpha: number): string {
+      const cx = n.x / W;
+      if (cx < 0.42) return `rgba(0,220,180,${alpha})`;
+      if (cx > 0.58) return `rgba(200,80,255,${alpha})`;
+      // blend zone
+      const t = (cx - 0.42) / 0.16;
+      const r = Math.round(0 + t * 200);
+      const g = Math.round(220 - t * 140);
+      const b = Math.round(180 + t * 75);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    function drawHexGrid() {
+      const size = 38;
+      const cols = Math.ceil(W / (size * 1.5)) + 2;
+      const rows = Math.ceil(H / (size * Math.sqrt(3))) + 2;
+      for (let row = -1; row < rows; row++) {
+        for (let col = -1; col < cols; col++) {
+          const x = col * size * 1.5;
+          const y =
+            row * size * Math.sqrt(3) +
+            (col % 2 ? (size * Math.sqrt(3)) / 2 : 0);
+          const cx = x / W;
+          let color: string;
+          if (cx < 0.42) color = "rgba(0,220,180,0.04)";
+          else if (cx > 0.58) color = "rgba(200,80,255,0.04)";
+          else {
+            const t = (cx - 0.42) / 0.16;
+            color = `rgba(${Math.round(t * 200)},${Math.round(220 - t * 140)},${Math.round(180 + t * 75)},0.04)`;
+          }
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i - Math.PI / 6;
+            const px = x + size * 0.85 * Math.cos(angle);
+            const py = y + size * 0.85 * Math.sin(angle);
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+
+      // Split background gradients
+      const leftGrad = ctx.createLinearGradient(0, 0, W * 0.5, H);
+      leftGrad.addColorStop(0, "#010612");
+      leftGrad.addColorStop(0.5, "#020b1a");
+      leftGrad.addColorStop(1, "#00040a");
+      ctx.fillStyle = leftGrad;
+      ctx.fillRect(0, 0, W * 0.5, H);
+
+      const rightGrad = ctx.createLinearGradient(W * 0.5, 0, W, H);
+      rightGrad.addColorStop(0, "#09010e");
+      rightGrad.addColorStop(0.5, "#05010a");
+      rightGrad.addColorStop(1, "#020005");
+      ctx.fillStyle = rightGrad;
+      ctx.fillRect(W * 0.5, 0, W * 0.5, H);
+
+      drawHexGrid();
+
+      const nodes = nodesRef.current;
+
+      // Draw connections
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const maxDist = 110;
+          if (dist < maxDist) {
+            const alpha = (1 - dist / maxDist) * 0.25;
+            const midX = (nodes[i].x + nodes[j].x) / 2;
+            const cx = midX / W;
+            let color: string;
+            if (cx < 0.42) color = `rgba(0,220,180,${alpha})`;
+            else if (cx > 0.58) color = `rgba(200,80,255,${alpha})`;
+            else color = `rgba(120,160,220,${alpha * 0.8})`;
+            ctx.beginPath();
+            ctx.moveTo(nodes[i].x, nodes[i].y);
+            ctx.lineTo(nodes[j].x, nodes[j].y);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw nodes
+      for (const n of nodes) {
+        n.pulse += n.pulseSpeed;
+        const pulseFactor = 0.7 + 0.3 * Math.sin(n.pulse);
+        const alpha = 0.5 + 0.5 * pulseFactor;
+
+        // Outer glow
+        const grd = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 3);
+        const baseColor = getNodeColor(n, alpha * 0.4);
+        grd.addColorStop(0, getNodeColor(n, alpha * 0.9));
+        grd.addColorStop(0.4, baseColor);
+        grd.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r * 3, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+
+        // Core
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r * pulseFactor, 0, Math.PI * 2);
+        ctx.fillStyle = getNodeColor(n, alpha);
+        ctx.fill();
+
+        // Update
+        n.x += n.vx;
+        n.y += n.vy;
+        if (n.x < -10 || n.x > W + 10) n.vx *= -1;
+        if (n.y < -10 || n.y > H + 10) n.vy *= -1;
+      }
+
+      // Center blend glow
+      const blendGrad = ctx.createLinearGradient(W * 0.38, 0, W * 0.62, 0);
+      blendGrad.addColorStop(0, "rgba(0,220,180,0)");
+      blendGrad.addColorStop(0.3, "rgba(0,180,200,0.04)");
+      blendGrad.addColorStop(0.5, "rgba(100,120,240,0.07)");
+      blendGrad.addColorStop(0.7, "rgba(180,80,255,0.04)");
+      blendGrad.addColorStop(1, "rgba(200,80,255,0)");
+      ctx.fillStyle = blendGrad;
+      ctx.fillRect(W * 0.38, 0, W * 0.24, H);
+
+      animRef.current = requestAnimationFrame(draw);
+    }
+
+    resize();
+    window.addEventListener("resize", resize);
+    animRef.current = requestAnimationFrame(draw);
+
+    return () => {
+      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(animRef.current);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
+}
+
+// ─── Typewriter Heading ───────────────────────────────────────────────────────
+
+function TypewriterHeading({
+  text,
+  style,
+  className,
+}: {
+  text: string;
+  style?: React.CSSProperties;
+  className?: string;
+}) {
+  const [displayed, setDisplayed] = useState("");
+  useEffect(() => {
+    let i = 0;
+    setDisplayed("");
+    // 900ms total duration ensures "SQL" (3 chars) and "PL/SQL" (6 chars) finish simultaneously
+    const intervalTime = 900 / text.length;
+    const t = setInterval(() => {
+      setDisplayed(text.slice(0, i + 1));
+      i++;
+      if (i >= text.length) clearInterval(t);
+    }, intervalTime);
+    return () => clearInterval(t);
+  }, [text]);
+  return (
+    <h1 className={className} style={style}>
+      {displayed}
+    </h1>
+  );
+}
+
+// ─── Enhanced Background Terminal Code Stream ─────────────────────────────────
+
+function BackgroundCode({
+  lines,
+  color,
+  speed = 14,
+}: {
+  lines: string[];
+  color: string;
+  speed?: number;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [displayedLines, setDisplayedLines] = useState<string[]>([""]);
+  const [lineIdx, setLineIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
+
+  // Monitor when typing reaches the bottom-right corner of the section:
+  // As soon as content overflows the visible container height, immediately restart at top-left.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el && displayedLines.length > 2) {
+      if (el.scrollHeight > el.clientHeight) {
+        setDisplayedLines([""]);
+        setLineIdx(0);
+        setCharIdx(0);
+      }
+    }
+  }, [displayedLines, charIdx]);
+
+  useEffect(() => {
+    if (lineIdx >= lines.length) {
+      setDisplayedLines([""]);
+      setLineIdx(0);
+      setCharIdx(0);
+      return;
+    }
+
+    const currentLine = lines[lineIdx];
+    if (charIdx <= currentLine.length) {
+      const timer = setTimeout(() => {
+        setDisplayedLines((prev) => {
+          const next = [...prev];
+          next[lineIdx] = currentLine.slice(0, charIdx);
+          return next;
+        });
+        setCharIdx((c) => c + 1);
+      }, speed);
+      return () => clearTimeout(timer);
+    } else {
+      setDisplayedLines((prev) => [...prev, ""]);
+      setLineIdx((l) => l + 1);
+      setCharIdx(0);
+    }
+  }, [charIdx, lineIdx, lines, speed]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="absolute inset-0 p-6 sm:p-8 md:p-10 pointer-events-none overflow-hidden select-none"
+      style={{
+        fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
+        fontSize: "clamp(9.5px, 0.85vw, 11px)",
+        lineHeight: "1.55",
+        color,
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+        letterSpacing: "0.01em",
+      }}
+    >
+      {displayedLines.map((line, i) => (
+        <div key={i} className="min-h-[1.55em]">
+          {line}
+          {i === displayedLines.length - 1 && (
+            <span
+              className="inline-block w-2 h-3.5 ml-1 align-middle opacity-75 animate-pulse"
+              style={{ backgroundColor: color }}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Query & Procedure Code Datasets ──────────────────────────────────────────
+
+const SQL_LINES = [
+  "SELECT e.emp_id, e.name, e.salary, e.hire_date,",
+  "       d.dept_name, d.region, d.budget,",
+  "       COUNT(p.project_id) AS total_projects,",
+  "       SUM(p.revenue)      AS total_revenue,",
+  "       AVG(p.duration_days) AS avg_duration",
+  "FROM   employees e",
+  "JOIN   departments d  ON e.dept_id  = d.id",
+  "LEFT   JOIN projects p ON e.emp_id  = p.lead_id",
+  "WHERE  e.status = 'ACTIVE'",
+  "  AND  d.region IN ('APAC', 'EMEA', 'AMER')",
+  "  AND  e.hire_date < SYSDATE - INTERVAL '2' YEAR",
+  "GROUP  BY e.emp_id, e.name, e.salary, e.hire_date,",
+  "          d.dept_name, d.region, d.budget",
+  "HAVING COUNT(p.project_id) > 2",
+  "ORDER  BY total_revenue DESC, e.salary DESC",
+  "FETCH  FIRST 50 ROWS ONLY;",
+  "",
+  "WITH monthly_sales AS (",
+  "  SELECT  product_id,",
+  "          TRUNC(sale_date, 'MM') AS month,",
+  "          SUM(quantity)          AS units_sold,",
+  "          SUM(amount)            AS revenue",
+  "  FROM    sales_records",
+  "  WHERE   sale_date >= ADD_MONTHS(SYSDATE, -12)",
+  "  GROUP   BY product_id, TRUNC(sale_date, 'MM')",
+  "),",
+  "ranked_products AS (",
+  "  SELECT  product_id, month, units_sold, revenue,",
+  "          RANK() OVER (",
+  "            PARTITION BY month",
+  "            ORDER BY revenue DESC",
+  "          ) AS rank_in_month",
+  "  FROM    monthly_sales",
+  ")",
+  "SELECT  p.product_name, r.month,",
+  "        r.units_sold,  r.revenue,",
+  "        r.rank_in_month",
+  "FROM    ranked_products r",
+  "JOIN    products p ON r.product_id = p.id",
+  "WHERE   r.rank_in_month <= 5",
+  "ORDER   BY r.month DESC, r.rank_in_month;",
+  "",
+  "SELECT  a.account_id, a.holder_name,",
+  "        a.balance,    a.account_type,",
+  "        t.txn_id,     t.txn_date,",
+  "        t.amount,     t.status,",
+  "        t.channel",
+  "FROM    accounts     a",
+  "INNER   JOIN transactions t",
+  "        ON  a.account_id = t.account_id",
+  "WHERE   t.txn_date  >= DATE '2024-01-01'",
+  "  AND   t.status    NOT IN ('CANCELLED','PENDING')",
+  "  AND   a.balance   > 5000",
+  "  AND   t.channel   = 'ONLINE'",
+  "ORDER   BY t.txn_date DESC, t.amount DESC;",
+  "",
+  "SELECT  d.dept_name,",
+  "        COUNT(e.emp_id)      AS headcount,",
+  "        AVG(e.salary)        AS avg_salary,",
+  "        MIN(e.salary)        AS min_salary,",
+  "        MAX(e.salary)        AS max_salary,",
+  "        SUM(e.salary)        AS payroll",
+  "FROM    departments d",
+  "JOIN    employees   e ON d.id = e.dept_id",
+  "WHERE   e.hire_date < DATE '2020-01-01'",
+  "  AND   e.status = 'ACTIVE'",
+  "GROUP   BY d.dept_name",
+  "ORDER   BY payroll DESC;",
+];
+
+const PLSQL_LINES = [
+  "CREATE OR REPLACE PROCEDURE sync_balances(",
+  "  p_account_id  IN  NUMBER,",
+  "  p_currency    IN  VARCHAR2 DEFAULT 'USD',",
+  "  p_result      OUT VARCHAR2",
+  ") IS",
+  "  v_balance     NUMBER  := 0;",
+  "  v_threshold   CONSTANT NUMBER := 1000;",
+  "  v_fx_rate     NUMBER  := 1;",
+  "  v_count       NUMBER;",
+  "BEGIN",
+  "  SELECT NVL(SUM(amount), 0)",
+  "    INTO v_balance",
+  "    FROM transactions",
+  "   WHERE account_id = p_account_id",
+  "     AND status     = 'POSTED';",
+  "  IF p_currency <> 'USD' THEN",
+  "    SELECT rate INTO v_fx_rate",
+  "      FROM fx_rates",
+  "     WHERE base = 'USD'",
+  "       AND quote = p_currency;",
+  "    v_balance := v_balance * v_fx_rate;",
+  "  END IF;",
+  "  IF v_balance < v_threshold THEN",
+  "    send_alert(p_account_id, v_balance);",
+  "  END IF;",
+  "  p_result := 'OK: ' || ROUND(v_balance, 2);",
+  "EXCEPTION",
+  "  WHEN NO_DATA_FOUND THEN",
+  "    p_result := 'NO_DATA';",
+  "  WHEN OTHERS THEN",
+  "    p_result := 'ERR: ' || SQLERRM;",
+  "    ROLLBACK;",
+  "END sync_balances;",
+  "/",
+  "",
+  "CREATE OR REPLACE FUNCTION get_employee_rank(",
+  "  p_emp_id IN NUMBER",
+  ") RETURN VARCHAR2 IS",
+  "  v_rank    VARCHAR2(50);",
+  "  v_salary  NUMBER;",
+  "  v_yrs     NUMBER;",
+  "BEGIN",
+  "  SELECT salary,",
+  "         MONTHS_BETWEEN(SYSDATE, hire_date) / 12",
+  "    INTO v_salary, v_yrs",
+  "    FROM employees",
+  "   WHERE emp_id = p_emp_id;",
+  "  IF    v_salary >= 120000 AND v_yrs >= 5 THEN",
+  "    v_rank := 'PRINCIPAL';",
+  "  ELSIF v_salary >= 90000  THEN",
+  "    v_rank := 'SENIOR';",
+  "  ELSIF v_salary >= 60000  THEN",
+  "    v_rank := 'MID';",
+  "  ELSE",
+  "    v_rank := 'JUNIOR';",
+  "  END IF;",
+  "  RETURN v_rank;",
+  "EXCEPTION",
+  "  WHEN NO_DATA_FOUND THEN RETURN 'UNKNOWN';",
+  "END get_employee_rank;",
+  "/",
+  "",
+  "CREATE OR REPLACE TRIGGER audit_salary_changes",
+  "BEFORE UPDATE OF salary ON employees",
+  "FOR EACH ROW",
+  "DECLARE",
+  "  v_pct NUMBER;",
+  "BEGIN",
+  "  v_pct := (:NEW.salary - :OLD.salary)",
+  "           / NULLIF(:OLD.salary, 0) * 100;",
+  "  INSERT INTO salary_audit(",
+  "    emp_id, old_salary, new_salary,",
+  "    pct_change, changed_by, changed_at",
+  "  ) VALUES (",
+  "    :OLD.emp_id, :OLD.salary, :NEW.salary,",
+  "    ROUND(v_pct, 2), SYS_CONTEXT('USERENV','SESSION_USER'),",
+  "    SYSDATE",
+  "  );",
+  "  IF v_pct > 50 THEN",
+  "    RAISE_APPLICATION_ERROR(",
+  "      -20001, 'Salary increase exceeds 50%');",
+  "  END IF;",
+  "END;",
+  "/",
+];
+
+// ─── Divider with Lightning Bolt ──────────────────────────────────────────────
+
+function Divider() {
+  return (
+    <div
+      className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none"
+      style={{ width: "3px" }}
+    >
+      {/* Main glowing line */}
+      <div
+        className="divider-glow w-full flex-1"
+        style={{
+          background:
+            "linear-gradient(to bottom, rgba(0,220,180,0.1) 0%, rgba(80,160,255,0.7) 30%, rgba(255,255,255,0.9) 50%, rgba(180,80,255,0.7) 70%, rgba(200,80,255,0.1) 100%)",
+        }}
+      />
+
+      {/* Connector icons along the divider */}
+      {[15, 30, 45, 60, 75, 90].map((pct) => (
+        <div
+          key={pct}
+          className="absolute node-pulse"
+          style={{
+            top: `${pct}%`,
+            width: "10px",
+            height: "10px",
+            borderRadius: "50%",
+            background:
+              pct < 50
+                ? "rgba(0,220,180,0.9)"
+                : pct > 50
+                  ? "rgba(200,80,255,0.9)"
+                  : "rgba(140,120,255,0.9)",
+            boxShadow:
+              pct < 50
+                ? "0 0 12px rgba(0,220,180,0.8)"
+                : "0 0 12px rgba(200,80,255,0.8)",
+            transform: "translate(-50%)",
+            animationDelay: `${pct * 0.08}s`,
+          }}
+        />
+      ))}
+
+      {/* SVG connection lines going sideways */}
+      <svg
+        className="absolute inset-0 overflow-visible pointer-events-none"
+        style={{ width: "200px", left: "-99px", top: 0, height: "100%" }}
+        preserveAspectRatio="none"
+      >
+        {[20, 40, 60, 80].map((pct, i) => (
+          <g key={pct}>
+            <line
+              x1="100"
+              y1={`${pct}%`}
+              x2="0"
+              y2={`${pct - 5 + i * 2}%`}
+              stroke="rgba(0,220,180,0.3)"
+              strokeWidth="1"
+              strokeDasharray="4 4"
+              className="connection-line"
+              style={{ animationDelay: `${i * 0.7}s` }}
+            />
+            <line
+              x1="100"
+              y1={`${pct}%`}
+              x2="200"
+              y2={`${pct + 3 - i}%`}
+              stroke="rgba(200,80,255,0.3)"
+              strokeWidth="1"
+              strokeDasharray="4 4"
+              className="connection-line"
+              style={{ animationDelay: `${i * 0.7 + 0.3}s` }}
+            />
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+// ─── Flow Particles ───────────────────────────────────────────────────────────
+
+const PARTICLES = [
+  { id: 0, left: "8%", duration: "8.4s", delay: "0.5s", size: 1.8, color: "rgba(0,220,180,0.6)" },
+  { id: 1, left: "16%", duration: "11.2s", delay: "2.1s", size: 2.4, color: "rgba(0,220,180,0.6)" },
+  { id: 2, left: "24%", duration: "7.6s", delay: "1.4s", size: 1.5, color: "rgba(0,220,180,0.6)" },
+  { id: 3, left: "32%", duration: "12.8s", delay: "3.7s", size: 2.9, color: "rgba(0,220,180,0.6)" },
+  { id: 4, left: "40%", duration: "9.5s", delay: "0.9s", size: 1.7, color: "rgba(0,220,180,0.6)" },
+  { id: 5, left: "48%", duration: "10.4s", delay: "4.2s", size: 2.2, color: "rgba(0,220,180,0.6)" },
+  { id: 6, left: "52%", duration: "8.9s", delay: "1.8s", size: 2.6, color: "rgba(200,80,255,0.6)" },
+  { id: 7, left: "60%", duration: "13.1s", delay: "3.2s", size: 1.6, color: "rgba(200,80,255,0.6)" },
+  { id: 8, left: "68%", duration: "7.8s", delay: "0.3s", size: 2.1, color: "rgba(200,80,255,0.6)" },
+  { id: 9, left: "76%", duration: "11.7s", delay: "4.8s", size: 2.8, color: "rgba(200,80,255,0.6)" },
+  { id: 10, left: "84%", duration: "9.1s", delay: "2.5s", size: 1.9, color: "rgba(200,80,255,0.6)" },
+  { id: 11, left: "92%", duration: "12.3s", delay: "1.1s", size: 2.5, color: "rgba(200,80,255,0.6)" },
+];
+
+function FlowParticles() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-5">
+      {PARTICLES.map((p) => (
+        <div
+          key={p.id}
+          className="flow-particle absolute rounded-full"
+          style={{
+            left: p.left,
+            width: `${p.size}px`,
+            height: `${p.size * 12}px`,
+            background: p.color,
+            boxShadow: `0 0 6px ${p.color}`,
+            animationDuration: p.duration,
+            animationDelay: p.delay,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+
+export default function App() {
+  const [view, setView] = useState<"split" | "sql" | "plsql">("split");
+  const [plsqlToast, setPlsqlToast] = useState(false);
+  const sqlRef = useRef<HTMLDivElement>(null);
+  const plsqlRef = useRef<HTMLDivElement>(null);
 
   const handlePlSqlClick = () => {
-    setPlsqlNotice(true);
+    setView((v) => (v === "plsql" ? "split" : "plsql"));
+    setPlsqlToast(true);
     setTimeout(() => {
-      setPlsqlNotice(false);
+      setPlsqlToast(false);
     }, 3200);
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#07090e] text-slate-100 flex flex-col font-sans overflow-x-hidden selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* Background Ambience & Grid */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* SQL Side Ambient Radial Glow */}
-        <div
-          className={`absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full bg-cyan-600/15 blur-[130px] transition-opacity duration-700 ${
-            hoveredSide === "sql" ? "opacity-100 scale-110" : "opacity-60"
-          }`}
-        />
-        {/* PL/SQL Side Ambient Radial Glow */}
-        <div
-          className={`absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full bg-purple-600/15 blur-[130px] transition-opacity duration-700 ${
-            hoveredSide === "plsql" ? "opacity-100 scale-110" : "opacity-60"
-          }`}
-        />
-        {/* Subtle Bottom Ambient Center Glow */}
-        <div className="absolute -bottom-40 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-blue-900/10 blur-[150px]" />
+    <div
+      className="relative w-full h-screen overflow-hidden select-none bg-[#02040a]"
+      style={{ fontFamily: "'Outfit', var(--font-geist-sans), sans-serif" }}
+    >
+      {/* Background canvas */}
+      <DBCanvas />
+      <FlowParticles />
 
-        {/* Tech Grid Pattern */}
+      {/* PL/SQL Feedback Toast */}
+      {plsqlToast && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl bg-[#140b24]/95 border border-purple-500/50 text-purple-200 text-xs sm:text-sm font-medium shadow-[0_0_30px_rgba(168,85,247,0.4)] flex items-center gap-3 backdrop-blur-md animate-bounce">
+          <span className="text-base">⚡</span>
+          <span>PL/SQL procedural engine is currently in development! Stay tuned.</span>
+          <button
+            type="button"
+            onClick={() => setPlsqlToast(false)}
+            className="ml-2 text-purple-400 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Split layout */}
+      <div className="relative z-10 w-full h-full flex pb-[72px] overflow-hidden">
+        {/* ── LEFT: SQL ── */}
         <div
-          className="absolute inset-0 opacity-[0.03]"
+          ref={sqlRef}
+          className="relative flex flex-col items-center justify-center px-6 sm:px-8 md:px-12 transition-all duration-700 ease-in-out"
           style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)`,
-            backgroundSize: "32px 32px",
+            minWidth: 0,
+            flex:
+              view === "sql"
+                ? "1 0 100%"
+                : view === "plsql"
+                  ? "0 0 0%"
+                  : "1 1 50%",
+            opacity: view === "plsql" ? 0 : 1,
           }}
-        />
+        >
+          {/* Color tint overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ backgroundColor: "#46000D", opacity: 0.35 }}
+          />
+
+          {/* Full-section blurred background code stream */}
+          <div
+            className="absolute inset-0 pointer-events-none overflow-hidden"
+            style={{ filter: "blur(1.5px)", opacity: 0.22 }}
+          >
+            <BackgroundCode lines={SQL_LINES} color="#00f5c4" />
+          </div>
+
+          {/* Subtle vignette */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse at 30% 50%, rgba(0,180,140,0.07) 0%, transparent 70%)",
+            }}
+          />
+
+          {/* Foreground content (Clean without foreground terminal) */}
+          <div className="relative z-10 w-full max-w-lg space-y-6 md:space-y-8 flex flex-col items-center">
+            {/* Badge */}
+            <div className="flex justify-center">
+              <span
+                className="text-xs tracking-[0.2em] uppercase px-4 py-1.5 rounded-full border backdrop-blur-md"
+                style={{
+                  color: "#00f5c4",
+                  borderColor: "rgba(0,245,196,0.3)",
+                  background: "rgba(0,245,196,0.08)",
+                  fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
+                }}
+              >
+                Structured Query Language
+              </span>
+            </div>
+
+            {/* Heading */}
+            <div className="text-center">
+              <TypewriterHeading
+                text="SQL"
+                className="font-bold leading-none tracking-tight"
+                style={{
+                  fontSize: "clamp(3.5rem, 8vw, 6rem)",
+                  color: "#00f5c4",
+                  textShadow:
+                    "0 0 60px rgba(0,245,196,0.4), 0 0 120px rgba(0,245,196,0.15)",
+                }}
+              />
+              <p
+                className="mt-3 text-sm md:text-base font-light tracking-wide"
+                style={{ color: "rgba(0,220,180,0.8)" }}
+              >
+                Query. Filter. Aggregate. Retrieve.
+              </p>
+            </div>
+
+            {/* Stats */}
+            <div className="flex justify-center gap-6 text-center pt-2">
+              {[
+                ["ANSI", "Standard"],
+                ["ACID", "Compliant"],
+                ["~50yr", "Legacy"],
+              ].map(([val, lbl]) => (
+                <div key={val}>
+                  <div
+                    className="text-lg sm:text-xl font-semibold"
+                    style={{
+                      color: "#00f5c4",
+                      fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
+                    }}
+                  >
+                    {val}
+                  </div>
+                  <div
+                    className="text-xs mt-0.5"
+                    style={{ color: "rgba(0,180,140,0.6)" }}
+                  >
+                    {lbl}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── DIVIDER ── */}
+        <div
+          className="transition-opacity duration-700"
+          style={{ opacity: view === "split" ? 1 : 0 }}
+        >
+          <Divider />
+        </div>
+
+        {/* ── RIGHT: PL/SQL ── */}
+        <div
+          ref={plsqlRef}
+          className="relative flex flex-col items-center justify-center px-6 sm:px-8 md:px-12 transition-all duration-700 ease-in-out"
+          style={{
+            minWidth: 0,
+            flex:
+              view === "plsql"
+                ? "1 0 100%"
+                : view === "sql"
+                  ? "0 0 0%"
+                  : "1 1 50%",
+            opacity: view === "sql" ? 0 : 1,
+          }}
+        >
+          {/* Color tint overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ backgroundColor: "#080B38", opacity: 0.35 }}
+          />
+
+          {/* Full-section blurred background code stream */}
+          <div
+            className="absolute inset-0 pointer-events-none overflow-hidden"
+            style={{ filter: "blur(1.5px)", opacity: 0.22 }}
+          >
+            <BackgroundCode lines={PLSQL_LINES} color="#f06bff" />
+          </div>
+
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse at 70% 50%, rgba(160,60,220,0.07) 0%, transparent 70%)",
+            }}
+          />
+
+          {/* Foreground content (Clean without foreground terminal) */}
+          <div className="relative z-10 w-full max-w-lg space-y-6 md:space-y-8 flex flex-col items-center">
+            {/* Badge */}
+            <div className="flex justify-center">
+              <span
+                className="text-xs tracking-[0.2em] uppercase px-4 py-1.5 rounded-full border backdrop-blur-md"
+                style={{
+                  color: "#f06bff",
+                  borderColor: "rgba(240,107,255,0.3)",
+                  background: "rgba(240,107,255,0.08)",
+                  fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
+                }}
+              >
+                Procedural Language / SQL
+              </span>
+            </div>
+
+            {/* Heading */}
+            <div className="text-center">
+              <TypewriterHeading
+                text="PL/SQL"
+                className="font-bold leading-none tracking-tight"
+                style={{
+                  fontSize: "clamp(3.5rem, 8vw, 6rem)",
+                  color: "#f06bff",
+                  textShadow:
+                    "0 0 60px rgba(240,107,255,0.4), 0 0 120px rgba(240,107,255,0.15)",
+                }}
+              />
+              <p
+                className="mt-3 text-sm md:text-base font-light tracking-wide"
+                style={{ color: "rgba(200,80,240,0.8)" }}
+              >
+                Procedures. Triggers. Control Flow.
+              </p>
+            </div>
+
+            {/* Stats */}
+            <div className="flex justify-center gap-6 text-center pt-2">
+              {[
+                ["Oracle", "Native"],
+                ["Block", "Structured"],
+                ["Ext.", "of SQL"],
+              ].map(([val, lbl]) => (
+                <div key={val}>
+                  <div
+                    className="text-lg sm:text-xl font-semibold"
+                    style={{
+                      color: "#f06bff",
+                      fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
+                    }}
+                  >
+                    {val}
+                  </div>
+                  <div
+                    className="text-xs mt-0.5"
+                    style={{ color: "rgba(180,60,200,0.6)" }}
+                  >
+                    {lbl}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Top Navigation Bar */}
-      <header className="relative z-20 w-full border-b border-white/[0.07] bg-[#07090e]/70 backdrop-blur-md px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-purple-500/20 border border-white/15 shadow-[0_0_15px_rgba(56,189,248,0.2)]">
-            <svg
-              className="w-5 h-5 text-cyan-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-base font-bold tracking-wider text-white flex items-center gap-2">
-              NL2Query
-              <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
-                v2.0
-              </span>
-            </span>
-            <span className="text-[11px] text-slate-400 tracking-wide">
-              Database Engine & Learning Lab
-            </span>
-          </div>
-        </div>
-
-        {/* Status indicator */}
-        <div className="hidden sm:flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08]">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="text-slate-300 font-medium">SQL Engine Ready</span>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Split Section */}
-      <main className="relative z-10 flex-1 flex flex-col md:flex-row w-full max-w-[1600px] mx-auto">
-        {/* ================================================================= */}
-        {/* LEFT HALF: SQL */}
-        {/* ================================================================= */}
-        <section
-          onMouseEnter={() => setHoveredSide("sql")}
-          onMouseLeave={() => setHoveredSide(null)}
-          className="relative flex-1 flex flex-col justify-between p-6 sm:p-10 lg:p-14 transition-all duration-500 group overflow-hidden"
+      {/* ── Bottom CTA Buttons ── */}
+      <div
+        className="absolute bottom-0 left-0 right-0 z-30 flex"
+        style={{ height: "72px" }}
+      >
+        {/* SQL Button - redirects to /sql */}
+        <Link
+          href="/sql"
+          className="flex-1 flex items-center justify-center gap-3 text-sm font-semibold tracking-widest uppercase transition-all duration-300 group"
+          style={{
+            background: "rgba(0,20,18,0.85)",
+            borderTop: "1px solid rgba(0,220,180,0.3)",
+            color: "#00f5c4",
+            fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
+            backdropFilter: "blur(16px)",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background =
+              "rgba(0,220,180,0.14)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background =
+              "rgba(0,20,18,0.85)";
+          }}
         >
-          {/* Subtle Hover Backlight */}
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.03] via-blue-500/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-
-          {/* Top Title & Metadata */}
-          <div className="relative z-10 space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 text-xs font-semibold tracking-wide uppercase shadow-[0_0_15px_rgba(6,182,212,0.15)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              Declarative Database Engine
-            </div>
-
-            <div>
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white mb-3">
-                <span className="bg-gradient-to-r from-white via-cyan-100 to-cyan-400 bg-clip-text text-transparent group-hover:drop-shadow-[0_0_30px_rgba(56,189,248,0.4)] transition-all duration-300">
-                  SQL
-                </span>
-              </h1>
-              <p className="text-slate-300 text-base sm:text-lg max-w-xl font-normal leading-relaxed">
-                Structured Query Language powered by natural language synthesis. Translate English prompts, explore interactive relational algebra, inspect step-by-step pipelines, and execute real-time SQLite queries.
-              </p>
-            </div>
-
-            {/* Feature Pills */}
-            <div className="flex flex-wrap gap-2 pt-2">
-              {[
-                "Natural Language to SQL",
-                "Relational Algebra Pipeline",
-                "Visual ER Schema & Diagram",
-                "PDF & DOCX Report Export",
-              ].map((feature) => (
-                <span
-                  key={feature}
-                  className="px-3 py-1 text-xs rounded-md bg-white/[0.04] border border-white/[0.08] text-slate-300 group-hover:border-cyan-500/30 group-hover:text-cyan-200 transition-colors"
-                >
-                  ✓ {feature}
-                </span>
-              ))}
-            </div>
-
-            {/* Interactive Code Preview Card */}
-            <div className="mt-4 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md p-4 shadow-xl font-mono text-xs overflow-x-auto text-slate-300 space-y-1.5 group-hover:border-cyan-500/30 transition-colors">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.06] text-[11px] text-slate-500">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
-                  <span className="ml-2 font-sans font-medium text-slate-400">query.sql</span>
-                </div>
-                <span className="text-cyan-400/80">SELECT Execution</span>
-              </div>
-              <p className="text-slate-500 italic">-- Prompt: "Find high earning employees by department"</p>
-              <p>
-                <span className="text-cyan-400 font-bold">SELECT</span>{" "}
-                <span className="text-white">department, COUNT(*), AVG(salary)</span>
-              </p>
-              <p>
-                <span className="text-cyan-400 font-bold">FROM</span>{" "}
-                <span className="text-emerald-300">employees</span>
-              </p>
-              <p>
-                <span className="text-cyan-400 font-bold">WHERE</span>{" "}
-                <span className="text-white">status = </span>
-                <span className="text-amber-300">&apos;ACTIVE&apos;</span>
-              </p>
-              <p>
-                <span className="text-cyan-400 font-bold">GROUP BY</span>{" "}
-                <span className="text-white">department</span>
-              </p>
-              <p>
-                <span className="text-cyan-400 font-bold">ORDER BY</span>{" "}
-                <span className="text-white">AVG(salary)</span>{" "}
-                <span className="text-cyan-400 font-bold">DESC</span>;
-              </p>
-            </div>
-          </div>
-
-          {/* Bottom Action Area */}
-          <div className="relative z-10 pt-8 mt-6">
-            <Link
-              href="/sql"
-              className="inline-flex items-center justify-center gap-3 w-full sm:w-auto px-8 py-4 rounded-xl font-semibold text-sm tracking-wide text-white bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 shadow-[0_0_25px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.7)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 border border-cyan-300/30 group/btn"
-            >
-              <svg
-                className="w-4 h-4 text-cyan-200 group-hover/btn:rotate-12 transition-transform duration-300"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-              </svg>
-              <span>Launch SQL Studio</span>
-              <span className="text-lg group-hover/btn:translate-x-1 transition-transform duration-300">
-                →
-              </span>
-            </Link>
-          </div>
-        </section>
-
-        {/* ================================================================= */}
-        {/* CENTER DIVIDER: LIGHTNING BOLT CONDUIT */}
-        {/* ================================================================= */}
-        <div className="relative flex md:flex-col items-center justify-center my-4 md:my-0 px-4 md:px-0 z-30">
-          {/* Vertical Laser Line (Desktop) */}
-          <div className="hidden md:block absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] bg-gradient-to-b from-transparent via-cyan-500/40 via-purple-500/40 to-transparent" />
-          
-          {/* Horizontal Line (Mobile) */}
-          <div className="block md:hidden absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-gradient-to-r from-transparent via-cyan-500/40 via-purple-500/40 to-transparent" />
-
-          {/* Electric Glow Aura */}
-          <div className="absolute w-24 h-24 rounded-full bg-gradient-to-tr from-cyan-500/20 via-blue-500/20 to-purple-500/20 blur-xl pointer-events-none animate-pulse" />
-
-          {/* Center Lightning Emblem */}
-          <div
-            className="relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#090b14] border-2 border-white/20 shadow-[0_0_30px_rgba(56,189,248,0.4),0_0_60px_rgba(168,85,247,0.3)] transition-transform duration-300 hover:scale-110 cursor-pointer group/bolt"
-            title="Database High Voltage Conduit"
+          <span
+            className="w-6 h-6 rounded-sm flex items-center justify-center text-xs"
+            style={{
+              background: "rgba(0,220,180,0.15)",
+              border: "1px solid rgba(0,220,180,0.3)",
+            }}
           >
-            {/* Spinning subtle energy ring */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-cyan-500/30 via-transparent to-purple-500/30 opacity-75 group-hover/bolt:opacity-100 transition-opacity" />
+            ⬡
+          </span>
+          Explore SQL
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            style={{ opacity: 0.8 }}
+            className="group-hover:translate-x-1 transition-transform"
+          >
+            <path
+              d="M7 2l5 5-5 5M2 7h10"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </Link>
 
-            {/* Lightning SVG Icon */}
-            <svg
-              className="relative w-8 h-8 sm:w-9 sm:h-9 text-amber-300 filter drop-shadow-[0_0_12px_rgba(251,191,36,0.9)] group-hover/bolt:drop-shadow-[0_0_20px_rgba(251,191,36,1)] transition-all duration-300 animate-[pulse_2s_ease-in-out_infinite]"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
+        {/* Center connector indicator */}
+        <div
+          className="flex items-center justify-center"
+          style={{
+            width: "3px",
+            background:
+              "linear-gradient(to bottom, rgba(80,160,220,0.5), rgba(140,100,255,0.5))",
+          }}
+        />
 
-            {/* Micro electric sparks around the bolt */}
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 blur-[1px] animate-ping" />
-            <span className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full bg-purple-400 blur-[1px] animate-ping delay-300" />
-          </div>
-        </div>
-
-        {/* ================================================================= */}
-        {/* RIGHT HALF: PL/SQL */}
-        {/* ================================================================= */}
-        <section
-          onMouseEnter={() => setHoveredSide("plsql")}
-          onMouseLeave={() => setHoveredSide(null)}
-          className="relative flex-1 flex flex-col justify-between p-6 sm:p-10 lg:p-14 transition-all duration-500 group overflow-hidden"
+        {/* PL/SQL Button - toggles view / notification (does nothing currently) */}
+        <button
+          type="button"
+          onClick={handlePlSqlClick}
+          className="flex-1 flex items-center justify-center gap-3 text-sm font-semibold tracking-widest uppercase transition-all duration-300 cursor-pointer group"
+          style={{
+            background: "rgba(14,2,18,0.85)",
+            borderTop: "1px solid rgba(200,80,255,0.3)",
+            color: "#f06bff",
+            fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
+            backdropFilter: "blur(16px)",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background =
+              "rgba(200,80,255,0.14)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background =
+              "rgba(14,2,18,0.85)";
+          }}
         >
-          {/* Subtle Hover Backlight */}
-          <div className="absolute inset-0 bg-gradient-to-bl from-purple-500/[0.03] via-pink-500/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-
-          {/* Top Title & Metadata */}
-          <div className="relative z-10 space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/25 text-purple-400 text-xs font-semibold tracking-wide uppercase shadow-[0_0_15px_rgba(168,85,247,0.15)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
-              Procedural Engine
-            </div>
-
-            <div>
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white mb-3">
-                <span className="bg-gradient-to-r from-white via-purple-100 to-purple-400 bg-clip-text text-transparent group-hover:drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300">
-                  PL/SQL
-                </span>
-              </h1>
-              <p className="text-slate-300 text-base sm:text-lg max-w-xl font-normal leading-relaxed">
-                Procedural Language extensions for SQL. Write stored procedures, user-defined functions, database triggers, explicit cursors, and control-flow blocks with complete transaction isolation.
-              </p>
-            </div>
-
-            {/* Feature Pills */}
-            <div className="flex flex-wrap gap-2 pt-2">
-              {[
-                "Stored Procedures & Functions",
-                "Database Triggers & Events",
-                "Explicit Cursors & Bulk Collect",
-                "Custom Exception Handling",
-              ].map((feature) => (
-                <span
-                  key={feature}
-                  className="px-3 py-1 text-xs rounded-md bg-white/[0.04] border border-white/[0.08] text-slate-300 group-hover:border-purple-500/30 group-hover:text-purple-200 transition-colors"
-                >
-                  ⚙ {feature}
-                </span>
-              ))}
-            </div>
-
-            {/* Interactive Code Preview Card */}
-            <div className="mt-4 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md p-4 shadow-xl font-mono text-xs overflow-x-auto text-slate-300 space-y-1.5 group-hover:border-purple-500/30 transition-colors">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.06] text-[11px] text-slate-500">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
-                  <span className="ml-2 font-sans font-medium text-slate-400">procedure.pls</span>
-                </div>
-                <span className="text-purple-400/80">PL/SQL Block</span>
-              </div>
-              <p>
-                <span className="text-purple-400 font-bold">CREATE OR REPLACE PROCEDURE</span>{" "}
-                <span className="text-white">apply_bonus(</span>
-                <span className="text-amber-300">p_id</span>{" "}
-                <span className="text-purple-400 font-bold">IN NUMBER</span>
-                <span className="text-white">)</span>{" "}
-                <span className="text-purple-400 font-bold">IS</span>
-              </p>
-              <p className="pl-4">
-                <span className="text-white">v_salary</span>{" "}
-                <span className="text-emerald-300">NUMBER(10,2)</span>;
-              </p>
-              <p>
-                <span className="text-purple-400 font-bold">BEGIN</span>
-              </p>
-              <p className="pl-4">
-                <span className="text-cyan-400 font-bold">SELECT</span>{" "}
-                <span className="text-white">salary</span>{" "}
-                <span className="text-cyan-400 font-bold">INTO</span>{" "}
-                <span className="text-white">v_salary</span>{" "}
-                <span className="text-cyan-400 font-bold">FROM</span>{" "}
-                <span className="text-emerald-300">employees</span>{" "}
-                <span className="text-cyan-400 font-bold">WHERE</span>{" "}
-                <span className="text-white">id = p_id;</span>
-              </p>
-              <p className="pl-4">
-                <span className="text-purple-400 font-bold">IF</span>{" "}
-                <span className="text-white">v_salary &lt; 50000</span>{" "}
-                <span className="text-purple-400 font-bold">THEN</span>
-              </p>
-              <p className="pl-8">
-                <span className="text-cyan-400 font-bold">UPDATE</span>{" "}
-                <span className="text-emerald-300">employees</span>{" "}
-                <span className="text-cyan-400 font-bold">SET</span>{" "}
-                <span className="text-white">salary = salary * 1.10;</span>
-              </p>
-              <p className="pl-4">
-                <span className="text-purple-400 font-bold">END IF;</span>
-              </p>
-              <p>
-                <span className="text-purple-400 font-bold">END;</span> /
-              </p>
-            </div>
-          </div>
-
-          {/* Bottom Action Area */}
-          <div className="relative z-10 pt-8 mt-6">
-            <div className="relative inline-block w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={handlePlSqlClick}
-                className="inline-flex items-center justify-center gap-3 w-full sm:w-auto px-8 py-4 rounded-xl font-semibold text-sm tracking-wide text-purple-200 bg-gradient-to-r from-purple-900/60 via-purple-800/40 to-pink-900/50 hover:bg-purple-800/60 border border-purple-500/40 hover:border-purple-400/80 shadow-[0_0_20px_rgba(168,85,247,0.2)] hover:shadow-[0_0_35px_rgba(168,85,247,0.4)] transition-all duration-300 group/plbtn cursor-pointer active:scale-[0.98]"
-              >
-                <svg
-                  className="w-4 h-4 text-purple-400 group-hover/plbtn:rotate-45 transition-transform duration-300"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M12 2a10 10 0 1010 10A10 10 0 0012 2zm1 15h-2v-6h2zm0-8h-2V7h2z" />
-                </svg>
-                <span>Explore PL/SQL</span>
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                  Coming Soon
-                </span>
-              </button>
-
-              {/* Toast Notification when clicked */}
-              {plsqlNotice && (
-                <div className="absolute -top-16 left-0 right-0 sm:right-auto sm:w-80 p-3 rounded-lg bg-[#141424] border border-purple-500/50 text-purple-200 text-xs shadow-2xl flex items-center gap-2 animate-bounce">
-                  <span className="text-base">⚡</span>
-                  <span>PL/SQL module is currently in development! Stay tuned.</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      </main>
-
-      {/* Sleek Footer */}
-      <footer className="relative z-10 w-full border-t border-white/[0.06] bg-[#07090e]/60 py-4 px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
-        <div className="flex items-center gap-2">
-          <span>NL2Query Teaching & Execution Suite</span>
-          <span>•</span>
-          <span className="text-slate-400">Relational & Procedural Database Architectures</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/sql"
-            className="text-cyan-400 hover:text-cyan-300 underline underline-offset-4 transition-colors"
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            style={{ opacity: 0.8, transform: "rotate(180deg)" }}
+            className="group-hover:-translate-x-1 transition-transform"
           >
-            Enter SQL Workspace →
-          </Link>
-        </div>
-      </footer>
+            <path
+              d="M7 2l5 5-5 5M2 7h10"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+          Explore PL/SQL
+          <span
+            className="w-6 h-6 rounded-sm flex items-center justify-center text-xs"
+            style={{
+              background: "rgba(200,80,255,0.15)",
+              border: "1px solid rgba(200,80,255,0.3)",
+            }}
+          >
+            ⬡
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
