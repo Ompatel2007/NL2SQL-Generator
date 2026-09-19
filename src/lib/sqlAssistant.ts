@@ -1,5 +1,10 @@
 import type { Table, Column } from "./schema";
-import { validateSQLAgainstSchema } from "./sqlEngine";
+import {
+  validateSQLAgainstSchema,
+  DISALLOWED_WORDS,
+  isGibberish,
+  findClosestKeyword,
+} from "./sqlEngine";
 
 export type DiagnosticSeverity = "valid" | "incomplete" | "warning" | "error";
 
@@ -96,6 +101,7 @@ export function findClosestMatch(
   candidates: string[],
   maxDistance = 3
 ): string | null {
+  if (target.length <= 1) return null;
   let closest: string | null = null;
   let minDistance = maxDistance + 1;
   const tLower = target.toLowerCase();
@@ -103,8 +109,9 @@ export function findClosestMatch(
   for (const candidate of candidates) {
     const cLower = candidate.toLowerCase();
     if (tLower === cLower) return candidate;
+    if (Math.abs(tLower.length - cLower.length) > 2) continue;
     const dist = levenshtein(tLower, cLower);
-    if (dist < minDistance && dist <= Math.max(2, Math.floor(cLower.length / 2))) {
+    if (dist < minDistance && dist <= Math.max(1, Math.floor(cLower.length / 2))) {
       minDistance = dist;
       closest = candidate;
     }
@@ -361,6 +368,78 @@ export function analyzeSQL(
     return { severity: "valid", title: "", suggestions: [] };
   }
 
+  // 3.5. Universal Disallowed Words & Gibberish Detection
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    if (tok.text.startsWith("'") || tok.text.startsWith('"') || tok.text.startsWith("`")) {
+      continue;
+    }
+
+    if (DISALLOWED_WORDS.has(tok.upper)) {
+      const prevTok = i > 0 ? tokens[i - 1] : undefined;
+      const nextTok = i + 1 < tokens.length ? tokens[i + 1] : undefined;
+      const replaceStart = prevTok ? prevTok.end : tok.start;
+      const replaceEnd = !prevTok && nextTok ? nextTok.start : tok.end;
+
+      return {
+        severity: "error",
+        title: `Disallowed word '${tok.text}'`,
+        what: `'${tok.text}' is a disallowed programming keyword not valid in SQL queries.`,
+        where: prevTok ? `After '${prevTok.text}'` : "In SQL statement",
+        suggestionText: `Remove the disallowed word '${tok.text}'.`,
+        quickFix: {
+          label: `Remove '${tok.text}'`,
+          replacement: "",
+          range: [replaceStart, replaceEnd],
+        },
+        suggestionsTitle: "Quick Fix:",
+        suggestions: [
+          {
+            label: `Remove '${tok.text}'`,
+            value: "",
+            category: "fix",
+            rangeToReplace: [replaceStart, replaceEnd],
+          },
+        ],
+      };
+    }
+
+    if (isGibberish(tok.text)) {
+      const isKnownTbl = schema.some((t) => t.name.toLowerCase() === tok.text.toLowerCase());
+      const isKnownCol = schema.some((t) =>
+        t.columns.some((c) => c.name.toLowerCase() === tok.text.toLowerCase()),
+      );
+      if (!isKnownTbl && !isKnownCol) {
+        const prevTok = i > 0 ? tokens[i - 1] : undefined;
+        const nextTok = i + 1 < tokens.length ? tokens[i + 1] : undefined;
+        const replaceStart = prevTok ? prevTok.end : tok.start;
+        const replaceEnd = !prevTok && nextTok ? nextTok.start : tok.end;
+
+        return {
+          severity: "error",
+          title: `Gibberish token '${tok.text}'`,
+          what: `Unrecognized word '${tok.text}' detected in SQL statement.`,
+          where: prevTok ? `After '${prevTok.text}'` : "In SQL statement",
+          suggestionText: `Remove the invalid token '${tok.text}'.`,
+          quickFix: {
+            label: `Remove '${tok.text}'`,
+            replacement: "",
+            range: [replaceStart, replaceEnd],
+          },
+          suggestionsTitle: "Quick Fix:",
+          suggestions: [
+            {
+              label: `Remove '${tok.text}'`,
+              value: "",
+              category: "fix",
+              rangeToReplace: [replaceStart, replaceEnd],
+            },
+          ],
+        };
+      }
+    }
+  }
+
   // 4. First token validation
   const firstToken = tokens[0].upper;
   const knownCommands = ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "TRUNCATE", "SHOW", "DESCRIBE"];
@@ -376,15 +455,139 @@ export function analyzeSQL(
         : "Statements must start with SELECT, INSERT, UPDATE, DELETE, etc.",
       quickFix: closestCmd
         ? {
-            label: `Change to '${closestCmd}'`,
-            replacement: closestCmd,
-            range: [tokens[0].start, tokens[0].end],
-          }
+          label: `Change to '${closestCmd}'`,
+          replacement: closestCmd,
+          range: [tokens[0].start, tokens[0].end],
+        }
         : undefined,
       suggestions: closestCmd
         ? [{ label: closestCmd, value: closestCmd, category: "clause", rangeToReplace: [tokens[0].start, tokens[0].end] }]
         : knownCommands.slice(0, 5).map((c) => ({ label: c, value: c, category: "clause" })),
     };
+  }
+
+  // 4.0. Detect multiple duplicate clause keywords (e.g. multiple WHERE or FROM clauses)
+  const clauseCounts: Record<string, number> = {};
+  for (const tok of tokens) {
+    if (["SELECT", "FROM", "WHERE", "HAVING", "LIMIT"].includes(tok.upper)) {
+      clauseCounts[tok.upper] = (clauseCounts[tok.upper] || 0) + 1;
+      if (clauseCounts[tok.upper] > 1) {
+        return {
+          severity: "error",
+          title: `Duplicate ${tok.upper} clause`,
+          what: `Multiple '${tok.upper}' clauses found in statement`,
+          where: `At '${tok.text}'`,
+          suggestionText:
+            tok.upper === "WHERE"
+              ? "Combine multiple filter conditions using 'AND' or 'OR' within a single WHERE clause."
+              : `Remove the duplicate '${tok.upper}' clause.`,
+          suggestions: [],
+        };
+      }
+    }
+  }
+
+  // 4.1. Detect duplicate adjacent SQL keywords (e.g. WHERE WHERE, FROM FROM)
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const t1 = tokens[i];
+    const t2 = tokens[i + 1];
+    if (
+      SQL_KEYWORDS.has(t1.upper) &&
+      t1.upper === t2.upper &&
+      !["AS", "BY", "JOIN"].includes(t1.upper)
+    ) {
+      return {
+        severity: "error",
+        title: `Duplicate keyword '${t1.text}'`,
+        what: `Redundant '${t2.text}' keyword found in statement`,
+        where: `After '${t1.text}'`,
+        suggestionText: `Remove the duplicate '${t2.text}' keyword.`,
+        quickFix: {
+          label: `Remove duplicate '${t2.text}'`,
+          replacement: "",
+          range: [t1.end, t2.end],
+        },
+        suggestions: [],
+      };
+    }
+  }
+
+  // 4.2. Universal Keyword Typo Detection across all tokens
+  const allKeywords = Array.from(SQL_KEYWORDS);
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    if (!/^[a-zA-Z_]\w*$/.test(tok.text) || SQL_KEYWORDS.has(tok.upper)) {
+      continue;
+    }
+
+    // Skip if it is a known table name in active schema
+    const isKnownTable = schema.some(
+      (t) => t.name.toLowerCase() === tok.text.toLowerCase(),
+    );
+    if (isKnownTable) continue;
+
+    // Skip if it is a known column in active schema
+    const isKnownColumn = schema.some((t) =>
+      t.columns.some((c) => c.name.toLowerCase() === tok.text.toLowerCase()),
+    );
+    if (isKnownColumn) continue;
+
+    // Skip if it is an alias used as a prefix (e.g. `c.name`)
+    const isQualifier = tokens.some((t) =>
+      t.text.toLowerCase().startsWith(`${tok.text.toLowerCase()}.`),
+    );
+    if (isQualifier) continue;
+
+    // Check if it's a typo of any SQL keyword
+    const closestKw = findClosestMatch(tok.upper, allKeywords, 2);
+    if (closestKw) {
+      // Check if the correct keyword already exists in the statement (like `WHRE WHERE`)
+      const hasExactKeyword = tokens.some(
+        (t, idx) => idx !== i && t.upper === closestKw,
+      );
+
+      if (hasExactKeyword) {
+        const nextTok = tokens[i + 1];
+        const prevTok = tokens[i - 1];
+        const replaceEnd = nextTok ? nextTok.start : tok.end;
+        return {
+          severity: "error",
+          title: `Unexpected token '${tok.text}'`,
+          what: `Redundant or misspelled keyword '${tok.text}' near '${closestKw}'`,
+          where: prevTok ? `After '${prevTok.text}'` : "In SQL statement",
+          suggestionText: `Remove the stray '${tok.text}' keyword.`,
+          quickFix: {
+            label: `Remove '${tok.text}'`,
+            replacement: "",
+            range: [tok.start, replaceEnd],
+          },
+          suggestions: [],
+        };
+      }
+
+      // Misspelled keyword (e.g. `WHRE city = 'Mumbai'` or `FORM customers`)
+      return {
+        severity: "error",
+        title: `Misspelled keyword '${tok.text}'`,
+        what: `Keyword '${tok.text}' is not recognized. Did you mean '${closestKw}'?`,
+        where: "In SQL statement",
+        suggestionText: `Replace '${tok.text}' with '${closestKw}'.`,
+        quickFix: {
+          label: `Replace with '${closestKw}'`,
+          replacement: closestKw,
+          range: [tok.start, tok.end],
+        },
+        suggestionsTitle: "Did you mean:",
+        suggestions: [
+          {
+            label: closestKw,
+            value: closestKw,
+            category: "clause",
+            rangeToReplace: [tok.start, tok.end],
+          },
+        ],
+      };
+    }
   }
 
   // 5. Extract referenced tables and aliases from the complete query
@@ -405,9 +608,52 @@ export function analyzeSQL(
         let alias: string | undefined = undefined;
         if (i + 2 < tokens.length) {
           const possibleAlias = tokens[i + 2];
+          const isKwTypo = Boolean(
+            findClosestMatch(possibleAlias.upper, allKeywords, 2),
+          );
           if (possibleAlias.upper === "AS" && i + 3 < tokens.length) {
             alias = tokens[i + 3].text;
-          } else if (!SQL_KEYWORDS.has(possibleAlias.upper) && !possibleAlias.text.includes(",") && possibleAlias.text !== ";") {
+          } else if (
+            !SQL_KEYWORDS.has(possibleAlias.upper) &&
+            !isKwTypo &&
+            !possibleAlias.text.includes(",") &&
+            possibleAlias.text !== ";"
+          ) {
+            const isQualifierUsed = tokens.some((t) =>
+              t.text.toLowerCase().startsWith(`${possibleAlias.text.toLowerCase()}.`),
+            );
+            if (!isQualifierUsed) {
+              const prevTok = nextTok;
+              const nextAfter = i + 3 < tokens.length ? tokens[i + 3] : undefined;
+              const replaceEnd = possibleAlias.end;
+              return {
+                severity: "error",
+                title: `Unexpected token '${possibleAlias.text}'`,
+                what: `Unexpected word '${possibleAlias.text}' after table '${prevTok.text}'. If this is a table alias, use 'AS ${possibleAlias.text}'. Otherwise, remove it.`,
+                where: `After '${prevTok.text}'`,
+                suggestionText: `Remove '${possibleAlias.text}' or write 'AS ${possibleAlias.text}'.`,
+                quickFix: {
+                  label: `Remove '${possibleAlias.text}'`,
+                  replacement: "",
+                  range: [prevTok.end, replaceEnd],
+                },
+                suggestionsTitle: "Suggested actions:",
+                suggestions: [
+                  {
+                    label: `Remove '${possibleAlias.text}'`,
+                    value: "",
+                    category: "fix",
+                    rangeToReplace: [prevTok.end, replaceEnd],
+                  },
+                  {
+                    label: `AS ${possibleAlias.text}`,
+                    value: `AS ${possibleAlias.text}`,
+                    category: "fix",
+                    rangeToReplace: [possibleAlias.start, possibleAlias.end],
+                  },
+                ],
+              };
+            }
             alias = possibleAlias.text;
           }
         }
@@ -438,10 +684,10 @@ export function analyzeSQL(
         suggestionText: closest ? `Did you mean \`${closest}\`?` : "Choose a table from the selected dataset:",
         quickFix: closest
           ? {
-              label: `Replace with \`${closest}\``,
-              replacement: closest,
-              range: [ref.start, ref.end],
-            }
+            label: `Replace with \`${closest}\``,
+            replacement: closest,
+            range: [ref.start, ref.end],
+          }
           : undefined,
         suggestionsTitle: closest ? "Did you mean:" : "Tables in current dataset:",
         suggestions: closest
@@ -509,21 +755,21 @@ export function analyzeSQL(
             : "Specify ON <table1.col = table2.col>",
           quickFix: suggestedJoin
             ? {
-                label: `Insert: ON ${suggestedJoin}`,
-                replacement: `${joinedTable} ON ${suggestedJoin}`,
-                range: [joinTableTok.start, joinTableTok.end],
-              }
+              label: `Insert: ON ${suggestedJoin}`,
+              replacement: `${joinedTable} ON ${suggestedJoin}`,
+              range: [joinTableTok.start, joinTableTok.end],
+            }
             : undefined,
           suggestionsTitle: suggestedJoin ? "Suggested JOIN condition:" : "Join columns:",
           suggestions: suggestedJoin
             ? [
-                {
-                  label: `ON ${suggestedJoin}`,
-                  value: ` ON ${suggestedJoin}`,
-                  category: "fix",
-                  detail: "Auto-detected relationship",
-                },
-              ]
+              {
+                label: `ON ${suggestedJoin}`,
+                value: ` ON ${suggestedJoin}`,
+                category: "fix",
+                detail: "Auto-detected relationship",
+              },
+            ]
             : [],
         };
       }
@@ -589,15 +835,34 @@ export function analyzeSQL(
             suggestionText: closestCol ? `Did you mean \`${closestCol}\`?` : `Available columns in \`${tblName}\`:`,
             quickFix: closestCol
               ? {
-                  label: `Replace with \`${closestCol}\``,
-                  replacement: closestCol,
-                  range: [tok.start, tok.end],
-                }
+                label: `Replace with \`${closestCol}\``,
+                replacement: closestCol,
+                range: [tok.start, tok.end],
+              }
               : undefined,
             suggestionsTitle: closestCol ? "Did you mean:" : "Available columns:",
-            suggestions: closestCol
-              ? [{ label: closestCol, value: closestCol, category: "column", rangeToReplace: [tok.start, tok.end] }]
-              : expectedTableCols.map((c) => ({ label: c.name, value: c.name, category: "column", rangeToReplace: [tok.start, tok.end] })),
+            suggestions: [
+              ...(closestCol
+                ? [
+                  {
+                    label: closestCol,
+                    value: closestCol,
+                    category: "column" as const,
+                    rangeToReplace: [tok.start, tok.end] as [number, number],
+                    detail: "Did you mean",
+                  },
+                ]
+                : []),
+              ...expectedTableCols
+                .filter((c) => c.name.toLowerCase() !== closestCol?.toLowerCase())
+                .map((c) => ({
+                  label: c.name,
+                  value: c.name,
+                  category: "column" as const,
+                  rangeToReplace: [tok.start, tok.end] as [number, number],
+                  detail: c.type,
+                })),
+            ],
           };
         }
       }
@@ -761,6 +1026,80 @@ export function analyzeSQL(
       };
     }
 
+    // Check for unknown or misspelled column in WHERE clause
+    const KNOWN_OPS = new Set([
+      "=", "!=", "<>", "<", ">", "<=", ">=", "LIKE", "ILIKE", "IN", "IS", "NOT", "BETWEEN", "==", "===", "!=="
+    ]);
+
+    for (let w = 0; w < whereTokens.length; w++) {
+      const wTok = whereTokens[w];
+      const isColPos =
+        (w + 1 < whereTokens.length && KNOWN_OPS.has(whereTokens[w + 1].upper)) ||
+        (w === 0 && whereTokens.length >= 1 && !SQL_KEYWORDS.has(wTok.upper));
+
+      if (isColPos && /^[a-zA-Z_]\w*(\.[a-zA-Z_]\w*)?$/.test(wTok.text) && !SQL_KEYWORDS.has(wTok.upper)) {
+        let colName = wTok.text;
+        let expectedCols = activeColumns;
+
+        if (colName.includes(".")) {
+          const [tblOrAlias, pureCol] = colName.split(".");
+          const actualTbl = aliasMap[tblOrAlias.toLowerCase()] || tblOrAlias.toLowerCase();
+          const matched = schema.find((t) => t.name.toLowerCase() === actualTbl);
+          if (matched) {
+            expectedCols = matched.columns.map((c) => ({ name: c.name, tableName: matched.name, type: c.type }));
+            colName = pureCol;
+          }
+        }
+
+        if (expectedCols.length > 0) {
+          const isKnown = expectedCols.some((c) => c.name.toLowerCase() === colName.toLowerCase());
+          if (!isKnown) {
+            const closestCol = findClosestMatch(colName, expectedCols.map((c) => c.name));
+            const tblName = expectedCols[0]?.tableName || "table";
+            return {
+              severity: "error",
+              title: `Unknown column: \`${colName}\``,
+              what: `Unknown column \`${colName}\` in table \`${tblName}\``,
+              where: "In WHERE condition",
+              suggestionText: closestCol
+                ? `Did you mean \`${closestCol}\`?`
+                : `Available columns in \`${tblName}\`:`,
+              quickFix: closestCol
+                ? {
+                  label: `Replace with \`${closestCol}\``,
+                  replacement: closestCol,
+                  range: [wTok.start, wTok.end],
+                }
+                : undefined,
+              suggestionsTitle: closestCol ? "Did you mean:" : `Columns in \`${tblName}\`:`,
+              suggestions: [
+                ...(closestCol
+                  ? [
+                    {
+                      label: closestCol,
+                      value: closestCol,
+                      category: "column" as const,
+                      rangeToReplace: [wTok.start, wTok.end] as [number, number],
+                      detail: "Did you mean",
+                    },
+                  ]
+                  : []),
+                ...expectedCols
+                  .filter((c) => c.name.toLowerCase() !== closestCol?.toLowerCase())
+                  .map((c) => ({
+                    label: c.name,
+                    value: c.name,
+                    category: "column" as const,
+                    rangeToReplace: [wTok.start, wTok.end] as [number, number],
+                    detail: c.type,
+                  })),
+              ],
+            };
+          }
+        }
+      }
+    }
+
     // Case: `WHERE col` (operator missing)
     if (whereTokens.length === 1 || (whereTokens.length === 2 && whereTokens[1].text === ";")) {
       const colName = whereTokens[0].text;
@@ -834,6 +1173,213 @@ export function analyzeSQL(
           category: "value" as const,
         })),
       };
+    }
+
+    // Check values in WHERE condition comparisons against active dataset rows
+    const VALUE_OPS = new Set(["=", "!=", "<>", "LIKE", "ILIKE"]);
+    for (let w = 0; w < whereTokens.length; w++) {
+      const wTok = whereTokens[w];
+      if (VALUE_OPS.has(wTok.upper) && w > 0 && w + 1 < whereTokens.length) {
+        const leftTok = whereTokens[w - 1];
+        const valTok = whereTokens[w + 1];
+
+        // Ensure leftTok is a valid column candidate
+        if (/^[a-zA-Z_]\w*(\.[a-zA-Z_]\w*)?$/.test(leftTok.text) && !SQL_KEYWORDS.has(leftTok.upper)) {
+          let colName = leftTok.text;
+          let targetTbl: Table | undefined = undefined;
+
+          if (colName.includes(".")) {
+            const [tblOrAlias, pureCol] = colName.split(".");
+            const actualTbl = aliasMap[tblOrAlias.toLowerCase()] || tblOrAlias.toLowerCase();
+            targetTbl = schema.find((t) => t.name.toLowerCase() === actualTbl);
+            colName = pureCol;
+          } else if (targetTables.length > 0) {
+            targetTbl = targetTables.find((t) => t.columns.some((c) => c.name.toLowerCase() === colName.toLowerCase())) || targetTables[0];
+          } else {
+            targetTbl = schema.find((t) => t.columns.some((c) => c.name.toLowerCase() === colName.toLowerCase()));
+          }
+
+          if (targetTbl && targetTbl.rows && targetTbl.rows.length > 0) {
+            const distinctValues: (string | number)[] = [];
+            const seenVals = new Set<string>();
+            for (const row of targetTbl.rows) {
+              const v = row[colName];
+              if (v !== undefined && v !== null) {
+                const key = String(v);
+                if (!seenVals.has(key)) {
+                  seenVals.add(key);
+                  distinctValues.push(v);
+                }
+              }
+            }
+
+            if (distinctValues.length > 0) {
+              const isSingleQuoted = valTok.text.startsWith("'") && valTok.text.endsWith("'");
+              const isDoubleQuoted = valTok.text.startsWith('"') && valTok.text.endsWith('"');
+              const isQuoted = isSingleQuoted || isDoubleQuoted;
+
+              if (isQuoted) {
+                const rawLiteral = valTok.text.slice(1, -1);
+                const exactMatch = distinctValues.some((v) => String(v) === rawLiteral);
+
+                if (!exactMatch) {
+                  const noSpaceLiteral = rawLiteral.replace(/\s+/g, "").toLowerCase();
+                  const collapsedLiteral = rawLiteral.trim().replace(/\s+/g, " ").toLowerCase();
+                  const stringCandidates = distinctValues.map((v) => String(v));
+
+                  let matchedVal: string | number | undefined = distinctValues.find(
+                    (v) => String(v).replace(/\s+/g, "").toLowerCase() === noSpaceLiteral,
+                  );
+                  if (matchedVal === undefined) {
+                    matchedVal = distinctValues.find(
+                      (v) => String(v).trim().replace(/\s+/g, " ").toLowerCase() === collapsedLiteral,
+                    );
+                  }
+                  if (matchedVal === undefined) {
+                    matchedVal = distinctValues.find(
+                      (v) => String(v).toLowerCase() === rawLiteral.trim().toLowerCase(),
+                    );
+                  }
+                  if (matchedVal === undefined) {
+                    const closest =
+                      findClosestMatch(rawLiteral.trim(), stringCandidates, 3) ||
+                      findClosestMatch(noSpaceLiteral, stringCandidates, 3);
+                    if (closest) matchedVal = closest;
+                  }
+                  if (matchedVal === undefined && rawLiteral.trim().length >= 3) {
+                    const sub = rawLiteral.trim().toLowerCase();
+                    matchedVal = distinctValues.find((v) =>
+                      String(v).toLowerCase().includes(sub) || sub.includes(String(v).toLowerCase()),
+                    );
+                  }
+
+                  const formattedReplacement = typeof matchedVal === "number" ? String(matchedVal) : `'${matchedVal}'`;
+                  const cleanDisplay = rawLiteral.trim() || rawLiteral;
+
+                  return {
+                    severity: "warning",
+                    title: `No records match '${cleanDisplay}'`,
+                    what: matchedVal !== undefined
+                      ? `No records in \`${targetTbl.name}\` match \`${colName} = ${valTok.text}\`. Did you mean '${matchedVal}'?`
+                      : `No records in \`${targetTbl.name}\` match \`${colName} = ${valTok.text}\`.`,
+                    where: `In WHERE condition: ${leftTok.text} ${wTok.text} ${valTok.text}`,
+                    suggestionText: matchedVal !== undefined
+                      ? `Did you mean '${matchedVal}'? Choose a valid value from the dataset:`
+                      : `Available values in \`${targetTbl.name}.${colName}\`:`,
+                    quickFix: matchedVal !== undefined
+                      ? {
+                          label: `Replace with '${matchedVal}'`,
+                          replacement: formattedReplacement,
+                          range: [valTok.start, valTok.end] as [number, number],
+                        }
+                      : undefined,
+                    suggestionsTitle: matchedVal !== undefined ? "Did you mean:" : `Values in \`${targetTbl.name}.${colName}\`:`,
+                    suggestions: [
+                      ...(matchedVal !== undefined
+                        ? [
+                            {
+                              label: formattedReplacement,
+                              value: formattedReplacement,
+                              category: "value" as const,
+                              rangeToReplace: [valTok.start, valTok.end] as [number, number],
+                              detail: "Did you mean",
+                            },
+                          ]
+                        : []),
+                      ...distinctValues
+                        .filter((v) => String(v) !== String(matchedVal))
+                        .slice(0, 6)
+                        .map((v) => {
+                          const formatted = typeof v === "string" ? `'${v}'` : String(v);
+                          return {
+                            label: formatted,
+                            value: formatted,
+                            category: "value" as const,
+                            rangeToReplace: [valTok.start, valTok.end] as [number, number],
+                          };
+                        }),
+                    ],
+                  };
+                }
+              } else if (!isQuoted && !/^\d+$/.test(valTok.text) && valTok.text !== ";" && !SQL_KEYWORDS.has(valTok.upper)) {
+                // Unquoted string identifier (e.g. WHERE city = Mumbai)
+                const candidateVal = distinctValues.find(
+                  (v) => String(v).toLowerCase() === valTok.text.toLowerCase(),
+                );
+                if (candidateVal !== undefined) {
+                  const formattedReplacement = `'${candidateVal}'`;
+                  return {
+                    severity: "error",
+                    title: `Missing quotes around '${valTok.text}'`,
+                    what: `'${valTok.text}' is a text value in \`${targetTbl.name}.${colName}\`. Text literals in SQL must be enclosed in single quotes.`,
+                    where: "In WHERE condition",
+                    suggestionText: `Enclose '${valTok.text}' in single quotes: '${candidateVal}'`,
+                    quickFix: {
+                      label: `Replace with '${candidateVal}'`,
+                      replacement: formattedReplacement,
+                      range: [valTok.start, valTok.end] as [number, number],
+                    },
+                    suggestionsTitle: "Quick Fix:",
+                    suggestions: [
+                      {
+                        label: formattedReplacement,
+                        value: formattedReplacement,
+                        category: "value" as const,
+                        rangeToReplace: [valTok.start, valTok.end] as [number, number],
+                      },
+                    ],
+                  };
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Check for stray / unexpected tokens after conditions in WHERE clause
+    for (let w = 0; w < whereTokens.length; w++) {
+      const wTok = whereTokens[w];
+      if (VALUE_OPS.has(wTok.upper) && w > 0 && w + 1 < whereTokens.length) {
+        const nextIdx = w + 2;
+        if (nextIdx < whereTokens.length) {
+          const trailingTok = whereTokens[nextIdx];
+          if (
+            trailingTok.text !== ";" &&
+            !["AND", "OR"].includes(trailingTok.upper) &&
+            !["GROUP", "ORDER", "HAVING", "LIMIT", "UNION"].includes(trailingTok.upper)
+          ) {
+            const prevTok = whereTokens[nextIdx - 1];
+            return {
+              severity: "error",
+              title: `Unexpected token '${trailingTok.text}'`,
+              what: `Unexpected word '${trailingTok.text}' in WHERE clause after condition '${whereTokens[w - 1].text} ${wTok.text} ${whereTokens[w + 1].text}'. Expected 'AND', 'OR', or end of statement.`,
+              where: `After '${prevTok.text}'`,
+              suggestionText: `Remove '${trailingTok.text}' or combine conditions with 'AND' / 'OR'.`,
+              quickFix: {
+                label: `Remove '${trailingTok.text}'`,
+                replacement: "",
+                range: [prevTok.end, trailingTok.end] as [number, number],
+              },
+              suggestionsTitle: "Suggested fixes:",
+              suggestions: [
+                {
+                  label: `Remove '${trailingTok.text}'`,
+                  value: "",
+                  category: "fix",
+                  rangeToReplace: [prevTok.end, trailingTok.end] as [number, number],
+                },
+                {
+                  label: "AND",
+                  value: "AND ",
+                  category: "operator",
+                  rangeToReplace: [trailingTok.start, trailingTok.end] as [number, number],
+                },
+              ],
+            };
+          }
+        }
+      }
     }
   }
 
@@ -1000,6 +1546,133 @@ export function analyzeSQL(
         suggestions: [],
       };
     }
+
+    // 13.1 Parse Unknown Column from schema validation
+    const colMatch = errorMsg.match(/Unknown column "([^"]+)" in ([^.]+)\.?(?: Did you mean "([^"]+)")?/i);
+    if (colMatch) {
+      const colName = colMatch[1];
+      const context = colMatch[2];
+      const suggested = colMatch[3];
+      const tok = tokens.find(
+        (t) =>
+          t.text.toLowerCase() === colName.toLowerCase() ||
+          t.text.toLowerCase().endsWith("." + colName.toLowerCase()),
+      );
+      const range: [number, number] | undefined = tok ? [tok.start, tok.end] : undefined;
+
+      return {
+        severity: "error",
+        title: `Unknown column: \`${colName}\``,
+        what: errorMsg,
+        where: `In ${context}`,
+        suggestionText: suggested ? `Did you mean \`${suggested}\`?` : "Choose an available column:",
+        quickFix: suggested && range
+          ? {
+            label: `Replace with \`${suggested}\``,
+            replacement: suggested,
+            range,
+          }
+          : undefined,
+        suggestionsTitle: suggested ? "Did you mean:" : "Available columns:",
+        suggestions: [
+          ...(suggested && range
+            ? [
+              {
+                label: suggested,
+                value: suggested,
+                category: "column" as const,
+                rangeToReplace: range,
+                detail: "Did you mean",
+              },
+            ]
+            : []),
+          ...activeColumns
+            .filter((c) => c.name.toLowerCase() !== suggested?.toLowerCase())
+            .map((c) => ({
+              label: c.name,
+              value: c.name,
+              category: "column" as const,
+              rangeToReplace: range,
+              detail: c.type,
+            })),
+        ],
+      };
+    }
+
+    // 13.2 Parse Unknown Table
+    const tblMatch = errorMsg.match(/Unknown table "([^"]+)"\.?(?: Did you mean "([^"]+)")?/i);
+    if (tblMatch) {
+      const tblName = tblMatch[1];
+      const suggested = tblMatch[2];
+      const tok = tokens.find((t) => t.text.toLowerCase() === tblName.toLowerCase());
+      const range: [number, number] | undefined = tok ? [tok.start, tok.end] : undefined;
+
+      return {
+        severity: "error",
+        title: `Unknown table: \`${tblName}\``,
+        what: errorMsg,
+        where: "In FROM / JOIN clause",
+        suggestionText: suggested ? `Did you mean \`${suggested}\`?` : "Choose a valid table:",
+        quickFix: suggested && range
+          ? {
+            label: `Replace with \`${suggested}\``,
+            replacement: suggested,
+            range,
+          }
+          : undefined,
+        suggestionsTitle: suggested ? "Did you mean:" : "Tables in current dataset:",
+        suggestions: [
+          ...(suggested && range
+            ? [{ label: suggested, value: suggested, category: "table" as const, rangeToReplace: range }]
+            : []),
+          ...availableTableNames
+            .filter((t) => t.toLowerCase() !== suggested?.toLowerCase())
+            .map((t) => ({
+              label: t,
+              value: t,
+              category: "table" as const,
+              rangeToReplace: range,
+            })),
+        ],
+      };
+    }
+
+    // 13.3 Parse Gibberish, Disallowed, or Unexpected token
+    const tokenMatch = errorMsg.match(/(?:Unexpected gibberish token|Disallowed word|Unexpected token) "([^"]+)"/i);
+    if (tokenMatch) {
+      const badWord = tokenMatch[1];
+      const tokIdx = tokens.findIndex((t) => t.text.toLowerCase() === badWord.toLowerCase());
+      if (tokIdx !== -1) {
+        const tok = tokens[tokIdx];
+        const prevTok = tokIdx > 0 ? tokens[tokIdx - 1] : undefined;
+        const nextTok = tokIdx + 1 < tokens.length ? tokens[tokIdx + 1] : undefined;
+        const replaceStart = prevTok ? prevTok.end : tok.start;
+        const replaceEnd = !prevTok && nextTok ? nextTok.start : tok.end;
+
+        return {
+          severity: "error",
+          title: isGibberish(badWord) ? `Gibberish token '${badWord}'` : `Invalid token '${badWord}'`,
+          what: errorMsg,
+          where: prevTok ? `After '${prevTok.text}'` : "In SQL statement",
+          suggestionText: `Remove '${badWord}' from the query.`,
+          quickFix: {
+            label: `Remove '${badWord}'`,
+            replacement: "",
+            range: [replaceStart, replaceEnd],
+          },
+          suggestionsTitle: "Quick Fix:",
+          suggestions: [
+            {
+              label: `Remove '${badWord}'`,
+              value: "",
+              category: "fix",
+              rangeToReplace: [replaceStart, replaceEnd],
+            },
+          ],
+        };
+      }
+    }
+
     return {
       severity: "error",
       title: "Invalid SQL syntax",

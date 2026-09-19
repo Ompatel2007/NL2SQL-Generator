@@ -65,8 +65,10 @@ export interface ParsedSelectQuery {
     distinct?: boolean;
   }[];
   from: string;
+  fromAlias?: string;
   joins: {
     table: string;
+    alias?: string;
     left: string;
     right: string;
     type: "INNER" | "LEFT";
@@ -344,6 +346,24 @@ export function parseSQL(sql: string, schema: Table[] = SCHEMA): ParsedQuery {
   const q = strip(sql);
   if (!q) throw new Error("Empty SQL query provided.");
 
+  // Reject disallowed programming words and gibberish outside string literals
+  const strippedLiterals = q.replace(/'[^']*'|"[^"]*"|`[^`]*`/g, " ");
+  const rawWords = strippedLiterals.split(/[^\w.]+/);
+  for (const w of rawWords) {
+    if (!w) continue;
+    const baseW = w.includes(".") ? w.split(".")[1] : w;
+    if (DISALLOWED_WORDS.has(baseW.toUpperCase())) {
+      throw new Error(`Disallowed word "${baseW}" found in SQL statement.`);
+    }
+    if (isGibberish(baseW)) {
+      const isKnownTbl = schema.some((t) => t.name.toLowerCase() === baseW.toLowerCase());
+      const isKnownCol = schema.some((t) => t.columns.some((c) => c.name.toLowerCase() === baseW.toLowerCase()));
+      if (!isKnownTbl && !isKnownCol) {
+        throw new Error(`Unexpected gibberish token "${baseW}" in SQL statement.`);
+      }
+    }
+  }
+
   // 1. DQL: SELECT
   if (/^select\b/i.test(q)) {
     return parseSelect(q, schema);
@@ -389,6 +409,69 @@ export function parseSQL(sql: string, schema: Table[] = SCHEMA): ParsedQuery {
   );
 }
 
+export function levenshteinDist(a: string, b: string): number {
+  const al = a.length;
+  const bl = b.length;
+  if (al === 0) return bl;
+  if (bl === 0) return al;
+  const row = Array.from({ length: bl + 1 }, (_, i) => i);
+  for (let i = 1; i <= al; i++) {
+    let prev = i;
+    for (let j = 1; j <= bl; j++) {
+      const val =
+        a[i - 1].toLowerCase() === b[j - 1].toLowerCase()
+          ? row[j - 1]
+          : Math.min(row[j - 1], prev, row[j]) + 1;
+      row[j - 1] = prev;
+      prev = val;
+    }
+    row[bl] = prev;
+  }
+  return row[bl];
+}
+
+export const DISALLOWED_WORDS = new Set([
+  "VAR", "LET", "CONST", "FUNCTION", "DEF", "CLASS", "IMPORT", "EXPORT",
+  "REQUIRE", "CONSOLE", "ALERT", "PROMPT", "DOCUMENT", "WINDOW", "EVAL",
+  "EXEC", "RETURN", "PROCESS", "SCRIPT", "SYSTEM", "PRINT", "LAMBDA", "GOTO",
+  "INCLUDE", "TRY", "CATCH", "THROW", "FINALLY", "TYPEOF", "INSTANCEOF",
+  "VOID", "YIELD", "ASYNC", "AWAIT", "DEBUGGER", "WITH", "FETCH", "SETTIMEOUT", "SETINTERVAL"
+]);
+
+export function isGibberish(text: string): boolean {
+  const clean = text.replace(/[^a-zA-Z]/g, "").toLowerCase();
+  if (clean.length >= 4 && !/[aeiouy]/.test(clean)) {
+    return true; // 4+ letters with zero vowels (e.g. wbcdhkbck)
+  }
+  if (/[bcdfghjklmnpqrstvwxyz]{5,}/i.test(clean)) {
+    return true; // 5+ consecutive consonants
+  }
+  if (/^(asdf|hjkl|qwerty|zxcv|dfgh|jklm)/i.test(clean) && clean.length >= 5) {
+    return true; // keyboard row mash
+  }
+  if (/(.)\1{3,}/.test(clean)) {
+    return true; // 4+ identical characters in a row
+  }
+  return false;
+}
+
+export function findClosestKeyword(target: string): string | null {
+  if (target.length <= 1) return null;
+  const tUpper = target.toUpperCase();
+  let closest: string | null = null;
+  let minDistance = 3;
+  for (const kw of SQL_KEYWORDS) {
+    if (tUpper === kw) return kw;
+    if (Math.abs(tUpper.length - kw.length) > 2) continue;
+    const dist = levenshteinDist(tUpper, kw);
+    if (dist < minDistance && dist <= Math.max(1, Math.floor(kw.length / 2))) {
+      minDistance = dist;
+      closest = kw;
+    }
+  }
+  return closest;
+}
+
 export function validateSQLAgainstSchema(
   sql: string,
   schema: Table[] = SCHEMA,
@@ -398,6 +481,15 @@ export function validateSQLAgainstSchema(
 
   const sourceTables = [parsed.from, ...parsed.joins.map((join) => join.table)];
   const tableByName = new Map(schema.map((table) => [table.name.toLowerCase(), table]));
+  const aliasToTable = new Map<string, string>();
+  if (parsed.fromAlias) {
+    aliasToTable.set(parsed.fromAlias.toLowerCase(), parsed.from.toLowerCase());
+  }
+  for (const join of parsed.joins) {
+    if (join.alias) {
+      aliasToTable.set(join.alias.toLowerCase(), join.table.toLowerCase());
+    }
+  }
 
   const hasColumn = (reference: string, allowWildcard = false): boolean => {
     if (allowWildcard && reference === "*") return true;
@@ -409,9 +501,10 @@ export function validateSQLAgainstSchema(
           ?.columns.some((tableColumn) => tableColumn.name.toLowerCase() === qualifier),
       );
     }
-    const table = tableByName.get(qualifier);
+    const resolvedTable = aliasToTable.get(qualifier) || qualifier;
+    const table = tableByName.get(resolvedTable);
     return (
-      sourceTables.includes(qualifier) &&
+      sourceTables.includes(resolvedTable) &&
       (column === "*"
         ? allowWildcard
         : Boolean(
@@ -424,7 +517,26 @@ export function validateSQLAgainstSchema(
 
   const requireColumn = (reference: string, context: string, allowWildcard = false) => {
     if (!hasColumn(reference, allowWildcard)) {
-      throw new Error(`Unknown column "${reference}" in ${context}.`);
+      const allCols: string[] = [];
+      for (const tName of sourceTables) {
+        const t = tableByName.get(tName);
+        if (t) {
+          for (const c of t.columns) allCols.push(c.name);
+        }
+      }
+      const refCol = reference.includes(".") ? reference.split(".")[1] : reference;
+      let closest: string | null = null;
+      let minDist = 3;
+      for (const c of allCols) {
+        const d = levenshteinDist(refCol.toLowerCase(), c.toLowerCase());
+        if (d < minDist) {
+          minDist = d;
+          closest = c;
+        }
+      }
+      throw new Error(
+        `Unknown column "${reference}" in ${context}.${closest ? ` Did you mean "${closest}"?` : ""}`,
+      );
     }
   };
 
@@ -483,38 +595,103 @@ function parseSelect(q: string, schema: Table[]): ParsedSelectQuery {
   const baseWords = basePart.split(/\s+/);
   parsed.from = baseWords[0].toLowerCase();
   if (!getTable(parsed.from, schema)) {
-    throw new Error(`Unknown table "${parsed.from}".`);
+    const closestTbl = schema.find(
+      (t) => levenshteinDist(t.name.toLowerCase(), parsed.from) <= 2,
+    );
+    throw new Error(
+      `Unknown table "${parsed.from}".${closestTbl ? ` Did you mean "${closestTbl.name}"?` : ""}`,
+    );
   }
 
-  // Validate that any extra tokens after table name form a valid alias (e.g., "table alias" or "table AS alias")
+  // Validate table alias or detect typos / unexpected tokens
   if (baseWords.length === 2) {
     const aliasCandidate = baseWords[1];
-    if (SQL_KEYWORDS.has(aliasCandidate.toUpperCase()) || /^[=<>!;&|]+$/.test(aliasCandidate)) {
+    const upperCandidate = aliasCandidate.toUpperCase();
+    if (SQL_KEYWORDS.has(upperCandidate)) {
       throw new Error(
-        `Unexpected token "${aliasCandidate}" after table "${parsed.from}".`,
+        `Unexpected keyword "${aliasCandidate}" after table "${parsed.from}".`,
       );
     }
+    if (DISALLOWED_WORDS.has(upperCandidate)) {
+      throw new Error(
+        `Disallowed word "${aliasCandidate}" after table "${parsed.from}".`,
+      );
+    }
+    if (isGibberish(aliasCandidate)) {
+      throw new Error(
+        `Unexpected gibberish token "${aliasCandidate}" after table "${parsed.from}".`,
+      );
+    }
+    const closestKw = findClosestKeyword(aliasCandidate);
+    if (closestKw) {
+      throw new Error(
+        `Unexpected token "${aliasCandidate}" after table "${parsed.from}". Did you mean "${closestKw}"?`,
+      );
+    }
+    // If identifier is not preceded by AS and not used as qualifier:
+    const isReferenced = q.toLowerCase().includes(`${aliasCandidate.toLowerCase()}.`);
+    if (!isReferenced) {
+      throw new Error(
+        `Unexpected token "${aliasCandidate}" after table "${parsed.from}". If this is an alias, use "AS ${aliasCandidate}". Otherwise, remove "${aliasCandidate}".`,
+      );
+    }
+    if (!/^[a-zA-Z_]\w*$/.test(aliasCandidate)) {
+      throw new Error(
+        `Invalid alias "${aliasCandidate}" after table "${parsed.from}".`,
+      );
+    }
+    parsed.fromAlias = aliasCandidate.toLowerCase();
   } else if (baseWords.length === 3 && baseWords[1].toUpperCase() === "AS") {
     const aliasCandidate = baseWords[2];
-    if (SQL_KEYWORDS.has(aliasCandidate.toUpperCase()) || /^[=<>!;&|]+$/.test(aliasCandidate)) {
+    const upperCandidate = aliasCandidate.toUpperCase();
+    if (SQL_KEYWORDS.has(upperCandidate)) {
       throw new Error(
-        `Unexpected alias "${aliasCandidate}" after table "${parsed.from}".`,
+        `Unexpected keyword "${aliasCandidate}" after AS in FROM clause.`,
       );
     }
+    if (DISALLOWED_WORDS.has(upperCandidate)) {
+      throw new Error(
+        `Disallowed word "${aliasCandidate}" after AS in FROM clause.`,
+      );
+    }
+    if (isGibberish(aliasCandidate)) {
+      throw new Error(
+        `Unexpected gibberish token "${aliasCandidate}" after AS in FROM clause.`,
+      );
+    }
+    const closestKw = findClosestKeyword(aliasCandidate);
+    if (closestKw) {
+      throw new Error(
+        `Unexpected alias "${aliasCandidate}" after table "${parsed.from}". Did you mean "${closestKw}"?`,
+      );
+    }
+    if (!/^[a-zA-Z_]\w*$/.test(aliasCandidate)) {
+      throw new Error(
+        `Invalid alias "${aliasCandidate}" after table "${parsed.from}".`,
+      );
+    }
+    parsed.fromAlias = aliasCandidate.toLowerCase();
   } else if (baseWords.length > 1) {
+    const firstExtra = baseWords[1];
+    const closestKw = findClosestKeyword(firstExtra);
+    if (closestKw) {
+      throw new Error(
+        `Unexpected token "${firstExtra}" after table "${parsed.from}". Did you mean "${closestKw}"?`,
+      );
+    }
     const extraTokens = baseWords.slice(1).join(" ");
     throw new Error(
-      `Unexpected token "${extraTokens}" in FROM clause. Did you mean "WHERE ${extraTokens}"?`,
+      `Unexpected token "${extraTokens}" in FROM clause.`,
     );
   }
 
   for (let i = 1; i < fromParts.length; i++) {
     const part = fromParts[i].trim();
     const m = part.match(
-      /^(?:(inner|left)(?:\s+outer)?\s+)?(\w+)(?:\s+(?:as\s+)?\w+)?\s+on\s+([\w.]+)\s*=\s*([\w.]+)(?:\s+(.+))?$/i,
+      /^(?:(inner|left)(?:\s+outer)?\s+)?(\w+)(?:\s+(?:as\s+)?(\w+))?\s+on\s+([\w.]+)\s*=\s*([\w.]+)(?:\s+(.+))?$/i,
     );
     if (!m) throw new Error(`Unsupported JOIN syntax: "JOIN ${fromParts[i]}".`);
-    const trailing = m[5]?.trim();
+    const trailing = m[6]?.trim();
     if (trailing) {
       throw new Error(
         `Missing WHERE keyword before condition "${trailing}". Did you mean "WHERE ${trailing}"?`,
@@ -523,7 +700,14 @@ function parseSelect(q: string, schema: Table[]): ParsedSelectQuery {
     const type = m[1]?.toLowerCase() === "left" ? "LEFT" : "INNER";
     const table = m[2].toLowerCase();
     if (!getTable(table, schema)) throw new Error(`Unknown table "${table}".`);
-    parsed.joins.push({ table, left: m[3], right: m[4], type });
+    const joinAlias = m[3]?.toLowerCase();
+    if (joinAlias) {
+      const closestKw = findClosestKeyword(joinAlias);
+      if (closestKw || SQL_KEYWORDS.has(joinAlias.toUpperCase())) {
+        throw new Error(`Unexpected keyword "${joinAlias}" used as alias in JOIN.`);
+      }
+    }
+    parsed.joins.push({ table, alias: joinAlias, left: m[4], right: m[5], type });
   }
 
   // Parse SELECT list
@@ -1018,13 +1202,25 @@ function parseTruncate(q: string, schema: Table[]): ParsedTruncateQuery {
 
 function splitClauses(q: string): Map<string, string> {
   const map = new Map<string, string>();
+  const seenKeys = new Set<string>();
   const re = /\b(select|from|where|group\s+by|having|order\s+by|limit)\b/gi;
   let last = -1;
   let key = "";
   let m: RegExpExecArray | null;
   while ((m = re.exec(q))) {
+    if (last === -1) {
+      const leading = q.slice(0, m.index).trim();
+      if (leading) {
+        throw new Error(`Unexpected token "${leading}" before ${m[0].toUpperCase()}.`);
+      }
+    }
+    const newKey = m[1].toLowerCase().replace(/\s+/g, " ");
+    if (seenKeys.has(newKey)) {
+      throw new Error(`Duplicate ${newKey.toUpperCase()} clause in SQL statement.`);
+    }
+    seenKeys.add(newKey);
     if (key) map.set(key, q.slice(last, m.index).trim());
-    key = m[1].toLowerCase().replace(/\s+/g, " ");
+    key = newKey;
     last = m.index + m[0].length;
   }
   if (key) map.set(key, q.slice(last).trim());
@@ -2114,7 +2310,7 @@ export function executeSQL(sql: string, schema: Table[] = SCHEMA): QueryResult {
   for (let i = 0; i < statements.length; i++) {
     const stmt = statements[i];
     try {
-      const parsed = parseSQL(stmt, currentSchema);
+      const parsed = validateSQLAgainstSchema(stmt, currentSchema);
       const result = executeParsed(parsed, currentSchema);
       if (result.error) {
         return {

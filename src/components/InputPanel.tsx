@@ -62,7 +62,7 @@ export function InputPanel({
     const timer = setTimeout(() => {
       const res = analyzeSQL(sql, activeSchema || []);
       setAssistantResult(res);
-    }, 200);
+    }, 120);
     return () => clearTimeout(timer);
   }, [sql, activeSchema]);
 
@@ -618,6 +618,14 @@ export function InputPanel({
             onSelect={(event) =>
               setCursorPos(event.currentTarget.selectionStart)
             }
+            onKeyDown={(event) => {
+              if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                event.preventDefault();
+                const immediate = analyzeSQL(sql, activeSchema || []);
+                setAssistantResult(immediate);
+                onRunQuery();
+              }
+            }}
             rows={4}
             spellCheck={false}
             className="w-full p-2.5 text-sm font-mono resize-y rounded-lg border focus:outline-none transition-colors"
@@ -647,7 +655,7 @@ export function InputPanel({
               }}
             >
               {/* Diagnostic Header */}
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start justify-between gap-2 flex-wrap sm:flex-nowrap">
                 <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                   {error || assistantResult.severity === "error" ? (
                     <span className="flex items-center gap-1 text-rose-400 font-semibold shrink-0">
@@ -707,13 +715,16 @@ export function InputPanel({
                     </span>
                   )}
 
-                  <span style={{ color: "var(--foreground)" }}>
+                  <span
+                    style={{ color: "var(--foreground)" }}
+                    className="break-words"
+                  >
                     {error || assistantResult.what || assistantResult.title}
                   </span>
                 </div>
 
                 {/* Quick Fix Button (if available) */}
-                {assistantResult.quickFix && !error && (
+                {assistantResult.quickFix && (
                   <button
                     type="button"
                     onClick={() =>
@@ -722,7 +733,7 @@ export function InputPanel({
                         assistantResult.quickFix!.range,
                       )
                     }
-                    className="shrink-0 px-2 py-0.5 text-[11px] font-semibold rounded bg-[var(--accent)] text-[var(--accent-foreground)] hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
+                    className="shrink-0 px-2 py-1 text-[11px] font-semibold rounded bg-[var(--accent)] text-[var(--accent-foreground)] hover:opacity-90 transition-opacity cursor-pointer shadow-xs whitespace-nowrap"
                     title={`Apply: ${assistantResult.quickFix.replacement}`}
                   >
                     {assistantResult.quickFix.label}
@@ -732,10 +743,9 @@ export function InputPanel({
 
               {/* Structured Explanation (WHAT, WHERE, SUGGESTION) when problem or suggestion exists */}
               {(assistantResult.where || assistantResult.suggestionText) &&
-                !error &&
                 assistantResult.severity !== "valid" && (
                   <div
-                    className="text-[11px] leading-relaxed pt-1.5 border-t opacity-90 space-y-0.5"
+                    className="text-[11px] leading-relaxed pt-1.5 border-t opacity-90 space-y-0.5 break-words"
                     style={{
                       borderColor: "var(--border)",
                       color: "var(--muted)",
@@ -761,41 +771,47 @@ export function InputPanel({
                 )}
 
               {/* Context-Aware Suggestion Chips */}
-              {assistantResult.suggestions.length > 0 && !error && (
+              {assistantResult.suggestions.length > 0 && (
                 <div
                   className="pt-1.5 border-t space-y-1"
                   style={{ borderColor: "var(--border)" }}
                 >
                   {assistantResult.suggestionsTitle && (
                     <div
-                      className="text-[10px] font-semibold tracking-wider uppercase opacity-70"
+                      className="text-[11px] font-semibold tracking-wide"
                       style={{ color: "var(--muted)" }}
                     >
                       {assistantResult.suggestionsTitle}
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto scrollbar-thin py-0.5">
-                    {assistantResult.suggestions.map((sugg, sIdx) => (
+                  <div className="flex flex-wrap gap-1.5">
+                    {assistantResult.suggestions.map((sugg, i) => (
                       <button
-                        key={`${sugg.category}-${sugg.label}-${sIdx}`}
+                        key={`${sugg.value}-${i}`}
                         type="button"
                         onClick={() =>
-                          handleApplySuggestion(sugg.value, sugg.rangeToReplace)
+                          handleApplySuggestion(
+                            sugg.value,
+                            sugg.rangeToReplace,
+                          )
                         }
-                        className="px-2 py-0.5 rounded text-[11px] font-mono border transition-all cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--surface-hover)] hover:scale-105 active:scale-95"
+                        className="px-2 py-0.5 text-[11px] rounded border transition-all cursor-pointer hover:border-[var(--accent)] flex items-center shadow-2xs"
                         style={{
-                          background: "var(--panel)",
-                          borderColor: "var(--border)",
-                          color:
-                            sugg.category === "table"
-                              ? "var(--accent)"
-                              : sugg.category === "column"
-                                ? "#38bdf8"
-                                : sugg.category === "operator"
-                                  ? "#fbbf24"
-                                  : sugg.category === "value"
-                                    ? "#34d399"
-                                    : "var(--foreground)",
+                          background:
+                            sugg.category === "operator"
+                              ? "var(--surface-hover)"
+                              : sugg.category === "table"
+                                ? "rgba(99, 102, 241, 0.15)"
+                                : sugg.category === "value"
+                                  ? "rgba(16, 185, 129, 0.15)"
+                                  : sugg.category === "fix"
+                                    ? "rgba(245, 158, 11, 0.2)"
+                                    : "var(--surface-subtle)",
+                          borderColor:
+                            sugg.category === "fix"
+                              ? "rgba(245, 158, 11, 0.4)"
+                              : "var(--border)",
+                          color: "var(--foreground)",
                         }}
                         title={
                           sugg.detail
@@ -818,7 +834,11 @@ export function InputPanel({
           )}
 
           <button
-            onClick={onRunQuery}
+            onClick={() => {
+              const immediate = analyzeSQL(sql, activeSchema || []);
+              setAssistantResult(immediate);
+              onRunQuery();
+            }}
             className="mt-2 w-full py-2 rounded-lg text-sm font-semibold border transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:opacity-90"
             style={{
               background: "var(--surface-subtle)",
