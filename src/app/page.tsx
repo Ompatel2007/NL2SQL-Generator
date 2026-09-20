@@ -70,16 +70,17 @@ function DBCanvas() {
     }
 
     // sky-blue (left, SQL) → ember (right, PL/SQL)
-    function getNodeColor(n: Node, alpha: number): string {
-      const cx = n.x / W;
-      if (cx < 0.44) return `rgba(214,238,255,${alpha})`;
-      if (cx > 0.56) return `rgba(255,91,57,${alpha})`;
-      const t = (cx - 0.44) / 0.12;
-      const r = Math.round(214 + t * (255 - 214));
-      const g = Math.round(238 - t * (238 - 91));
-      const b = Math.round(255 - t * (255 - 57));
-      return `rgba(${r},${g},${b},${alpha})`;
-    }
+    // function getNodeColor(n: Node, alpha: number): string {
+    //   // const cx = n.x / W;
+    //   // if (cx < 0.44) return `rgba(214,238,255,${alpha})`;
+    //   // if (cx > 0.56) return `rgba(255,91,57,${alpha})`;
+    //   // const t = (cx - 0.44) / 0.12;
+    //   // const r = Math.round(214 + t * (255 - 214));
+    //   // const g = Math.round(238 - t * (238 - 91));
+    //   // const b = Math.round(255 - t * (255 - 57));
+    //   // return `rgba(${r},${g},${b},${alpha})`;
+    //   // return 'rgba(239, 197, 232, 1)`,
+    // }
 
     function drawHexGrid() {
       const size = 38;
@@ -94,7 +95,7 @@ function DBCanvas() {
           const cx = x / W;
           let color: string;
           if (cx < 0.44) color = "rgba(148,199,255,0.035)";
-          else if (cx > 0.56) color = "rgba(255,91,57,0.04)";
+          else if (cx > 0.56) color = "rgba(255, 91, 57, 0.04)";
           else {
             const t = (cx - 0.44) / 0.12;
             const r = Math.round(148 + t * (255 - 148));
@@ -151,7 +152,7 @@ function DBCanvas() {
             const cx = midX / W;
             let color: string;
             if (cx < 0.44) color = `rgba(214,238,255,${alpha * 0.6})`;
-            else if (cx > 0.56) color = `rgba(255,91,57,${alpha})`;
+            else if (cx > 0.56) color = `rgba(255,255,255,${alpha})`;
             else color = `rgba(255,196,170,${alpha * 0.8})`;
             ctx.beginPath();
             ctx.moveTo(nodes[i].x, nodes[i].y);
@@ -169,9 +170,9 @@ function DBCanvas() {
         const alpha = 0.5 + 0.5 * pulseFactor;
 
         const grd = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 3);
-        const baseColor = getNodeColor(n, alpha * 0.4);
-        grd.addColorStop(0, getNodeColor(n, alpha * 0.9));
-        grd.addColorStop(0.4, baseColor);
+        // const baseColor = getNodeColor(n, alpha * 0.4);
+        // grd.addColorStop(0, getNodeColor(n, alpha * 0.9));
+        // grd.addColorStop(0.4, baseColor);
         grd.addColorStop(1, "rgba(0,0,0,0)");
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.r * 3, 0, Math.PI * 2);
@@ -180,7 +181,7 @@ function DBCanvas() {
 
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.r * pulseFactor, 0, Math.PI * 2);
-        ctx.fillStyle = getNodeColor(n, alpha);
+        // ctx.fillStyle = getNodeColor(n, alpha);
         ctx.fill();
 
         n.x += n.vx;
@@ -498,67 +499,9 @@ function Divider() {
         className="divider-glow w-full flex-1"
         style={{
           background:
-            "linear-gradient(to bottom, rgba(214,238,255,0.18) 0%, rgba(214,238,255,0.75) 30%, rgba(255,255,255,0.95) 50%, rgba(255,91,57,0.75) 70%, rgba(255,91,57,0.12) 100%)",
+            "linear-gradient(to bottom, rgba(214,238,255,0.18) 0%, rgba(214,238,255,0.75) 30%, rgba(255,255,255,0.95) 50%, rgba(239, 197, 232, 1) 70%, rgba(198, 71, 170, 0.83) 100%)",
         }}
       />
-
-      {[15, 30, 45, 60, 75, 90].map((pct) => (
-        <div
-          key={pct}
-          className="absolute node-pulse"
-          style={{
-            top: `${pct}%`,
-            width: "10px",
-            height: "10px",
-            borderRadius: "50%",
-            background:
-              pct < 50
-                ? "rgba(214,238,255,0.95)"
-                : pct > 50
-                  ? "rgba(255,91,57,0.9)"
-                  : "rgba(255,255,255,0.95)",
-            boxShadow:
-              pct < 50
-                ? "0 0 12px rgba(214,238,255,0.9)"
-                : "0 0 12px rgba(255,91,57,0.85)",
-            transform: "translate(-50%)",
-            animationDelay: `${pct * 0.08}s`,
-          }}
-        />
-      ))}
-
-      <svg
-        className="absolute inset-0 overflow-visible pointer-events-none"
-        style={{ width: "200px", left: "-99px", top: 0, height: "100%" }}
-        preserveAspectRatio="none"
-      >
-        {[20, 40, 60, 80].map((pct, i) => (
-          <g key={pct}>
-            <line
-              x1="100"
-              y1={`${pct}%`}
-              x2="0"
-              y2={`${pct - 5 + i * 2}%`}
-              stroke="rgba(214,238,255,0.35)"
-              strokeWidth="1"
-              strokeDasharray="4 4"
-              className="connection-line"
-              style={{ animationDelay: `${i * 0.7}s` }}
-            />
-            <line
-              x1="100"
-              y1={`${pct}%`}
-              x2="200"
-              y2={`${pct + 3 - i}%`}
-              stroke="rgba(255,91,57,0.32)"
-              strokeWidth="1"
-              strokeDasharray="4 4"
-              className="connection-line"
-              style={{ animationDelay: `${i * 0.7 + 0.3}s` }}
-            />
-          </g>
-        ))}
-      </svg>
     </div>
   );
 }
@@ -620,7 +563,7 @@ const PARTICLES = [
     duration: "8.9s",
     delay: "1.8s",
     size: 2.6,
-    color: "rgba(255,91,57,0.65)",
+    color: "rgba(239, 197, 232, 1)",
   },
   {
     id: 7,
@@ -628,7 +571,7 @@ const PARTICLES = [
     duration: "13.1s",
     delay: "3.2s",
     size: 1.6,
-    color: "rgba(255,91,57,0.65)",
+    color: "rgba(239, 197, 232, 1)",
   },
   {
     id: 8,
@@ -636,7 +579,7 @@ const PARTICLES = [
     duration: "7.8s",
     delay: "0.3s",
     size: 2.1,
-    color: "rgba(255,91,57,0.65)",
+    color: "rgba(239, 197, 232, 1)",
   },
   {
     id: 9,
@@ -644,7 +587,7 @@ const PARTICLES = [
     duration: "11.7s",
     delay: "4.8s",
     size: 2.8,
-    color: "rgba(255,91,57,0.65)",
+    color: "rgba(239, 197, 232, 1)",
   },
   {
     id: 10,
@@ -652,7 +595,7 @@ const PARTICLES = [
     duration: "9.1s",
     delay: "2.5s",
     size: 1.9,
-    color: "rgba(255,91,57,0.65)",
+    color: "rgba(239, 197, 232, 1)",
   },
   {
     id: 11,
@@ -660,7 +603,7 @@ const PARTICLES = [
     duration: "12.3s",
     delay: "1.1s",
     size: 2.5,
-    color: "rgba(255,91,57,0.65)",
+    color: "rgba(239, 197, 232, 1)",
   },
 ];
 
@@ -810,8 +753,7 @@ export default function App() {
                 className="mt-3 text-sm md:text-base font-light tracking-wide max-w-sm mx-auto"
                 style={{ color: "rgba(226,247,255,0.85)" }}
               >
-                Describe the result you want — the engine works out how to get
-                it.
+                Describe what you want.
               </p>
             </div>
           </div>
@@ -842,7 +784,7 @@ export default function App() {
         >
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ backgroundColor: "#1c0b06", opacity: 0.45 }}
+            style={{ backgroundColor: "#4808a3a6", opacity: 0.45 }}
           />
 
           <div
@@ -865,9 +807,9 @@ export default function App() {
               <span
                 className="text-xs px-4 py-1.5 rounded-full border backdrop-blur-md"
                 style={{
-                  color: "#FFD9C7",
-                  borderColor: "rgba(255,91,57,0.35)",
-                  background: "rgba(255,91,57,0.08)",
+                  color: "#FFFFFF",
+                  borderColor: "rgba(234,94,255,0.35)",
+                  background: "rgba(210,129,228,0.15)",
                   fontFamily:
                     "'JetBrains Mono', var(--font-geist-mono), monospace",
                   letterSpacing: "0.03em",
@@ -885,15 +827,14 @@ export default function App() {
                   fontSize: "clamp(3.5rem, 8vw, 6rem)",
                   color: "#fce3f0",
                   textShadow:
-                    "0 0 60px rgba(255,106,61,0.45), 0 0 120px rgba(255,106,61,0.18)",
+                    "0 0 60px rgba(239, 197, 232, .5), 0 0 120px rgba(184, 64, 164, 0.5)",
                 }}
               />
               <p
                 className="mt-3 text-sm md:text-base font-light tracking-wide max-w-sm mx-auto"
-                style={{ color: "rgba(255,214,199,0.85)" }}
+                style={{ color: "rgba(239, 197, 232, 1)" }}
               >
-                Write the steps yourself — loops, conditions, and control flow
-                live here.
+                Define how it happens.
               </p>
             </div>
           </div>
@@ -925,16 +866,6 @@ export default function App() {
               "rgba(8,18,33,0.88)";
           }}
         >
-          <span
-            className="w-6 h-6 rounded-sm flex items-center justify-center text-xs"
-            style={{
-              background: "rgba(125,211,252,0.15)",
-              border: "1px solid rgba(125,211,252,0.3)",
-              color: "#F3FBFF",
-            }}
-          >
-            ⬡
-          </span>
           Start querying
           <svg
             width="14"
@@ -968,19 +899,19 @@ export default function App() {
           onClick={handlePlSqlClick}
           className="flex-1 flex items-center justify-center gap-3 text-sm font-semibold transition-all duration-300 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 focus-visible:ring-inset"
           style={{
-            background: "rgba(55,16,37, 0.75)",
-            borderTop: "1px solid rgba(255,91,57,0.3)",
-            color: "#FF9A6C",
+            background: "#280934",
+            borderTop: "1px solid #8d42aaff",
+            color: "rgba(243, 223, 240, 1)",
             fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
             backdropFilter: "blur(16px)",
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background =
-              "rgba(82, 24, 55, 0.4)";
+              "rgba(83, 31, 102, .8)";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background =
-              "rgba(55,16,37, 0.75)";
+              "#280934";
           }}
         >
           <svg
@@ -999,15 +930,6 @@ export default function App() {
             />
           </svg>
           Start scripting
-          <span
-            className="w-6 h-6 rounded-sm flex items-center justify-center text-xs"
-            style={{
-              background: "rgba(55,16,37,0.15)",
-              border: "1px solid rgba(255,91,57,0.3)",
-            }}
-          >
-            ⬡
-          </span>
         </button>
       </div>
     </div>
