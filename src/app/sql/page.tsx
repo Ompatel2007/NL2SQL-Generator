@@ -670,6 +670,7 @@ export default function Home() {
         onThemeChange={handleThemeChange}
         activeSection={activeSection}
         onSectionChange={setActiveSection}
+        mode="sql"
       />
 
       {/* Primary Content Viewport Container */}

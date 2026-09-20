@@ -4,6 +4,8 @@ import type { ThemeId } from "./nlSqlTypes";
 import Image from "next/image";
 import Logo from "../../public/Logo.png";
 
+import Link from "next/link";
+
 export type NavSection = "workspace" | "download" | "learn" | "help" | "developedBy";
 
 const NAV_ITEMS: { id: NavSection; label: string }[] = [
@@ -19,6 +21,7 @@ interface AppHeaderProps {
   onThemeChange: (theme: ThemeId) => void;
   activeSection?: NavSection;
   onSectionChange?: (section: NavSection) => void;
+  mode?: "sql" | "plsql";
 }
 
 export function AppHeader({
@@ -26,6 +29,7 @@ export function AppHeader({
   onThemeChange,
   activeSection = "workspace",
   onSectionChange,
+  mode,
 }: AppHeaderProps) {
   const isDark = theme !== "pearl";
 
@@ -39,22 +43,50 @@ export function AppHeader({
     >
       {/* Brand logo & title + Navigation */}
       <div className="flex items-center gap-3 sm:gap-6 min-w-0">
-        <button
-          type="button"
-          onClick={() => onSectionChange?.("workspace")}
-          className="flex items-center gap-2.5 shrink-0 cursor-pointer text-left bg-transparent border-none p-0 focus:outline-none"
-          title="Return to Workspace"
-        >
-          <Image src={Logo} alt="NL2Query Logo" className="w-10 h-10" />
-          <div className="flex items-baseline gap-2">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Link
+            href="/"
+            className="flex items-center gap-2 cursor-pointer focus:outline-none"
+            title="Return to Home"
+          >
+            <Image src={Logo} alt="NL2Query Logo" className="w-9 h-9" />
             <h1
               className="text-base font-bold tracking-tight whitespace-nowrap"
               style={{ color: "var(--foreground)" }}
             >
               NL2Query
             </h1>
-          </div>
-        </button>
+          </Link>
+
+          {/* Mode Switcher Pill */}
+          {mode && (
+            <div
+              className="hidden sm:flex items-center rounded-lg border p-0.5 text-xs font-mono"
+              style={{ borderColor: "var(--border)", background: "var(--surface-subtle)" }}
+            >
+              <Link
+                href="/sql"
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                  mode === "sql"
+                    ? "bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-xs"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                SQL
+              </Link>
+              <Link
+                href="/plsql"
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                  mode === "plsql"
+                    ? "bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-xs"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                PL/SQL
+              </Link>
+            </div>
+          )}
+        </div>
 
         {/* Major Top Navigation */}
         <nav
