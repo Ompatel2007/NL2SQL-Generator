@@ -1,4 +1,4 @@
-# NL→SQL & Interactive DBMS Visualizer (DQL • DML • DDL)
+# NL to SQL & Interactive DBMS Visualizer (DQL • DML • DDL)
 
 An interactive web application that teaches and demonstrates **Natural Language & Voice to SQL** and a full-featured **Relational Database Management System (DBMS)** through real-time visualization, simulation, and step-by-step pipeline execution.
 
