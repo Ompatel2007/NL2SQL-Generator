@@ -1,0 +1,26 @@
+name: Hourly Upstream Sync
+
+on:
+  schedule:
+    - cron: '53 * * * *'
+  workflow_dispatch: # Keeps the button to trigger it manually
+
+jobs:
+  sync_latest_from_upstream:
+    runs-on: ubuntu-latest
+    name: Sync latest commits from upstream
+
+    steps:
+    - name: Checkout target repo
+      uses: actions/checkout@v4
+      with:
+        ref: main
+
+    - name: Sync Upstream
+      uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
+      with:
+        target_sync_branch: master
+        upstream_repository: https://github.com/saurabhksatya/nlp-sql
+        upstream_branch: master
+        target_branch: master
+        github_token: ${{ secrets.GITHUB_TOKEN }}
