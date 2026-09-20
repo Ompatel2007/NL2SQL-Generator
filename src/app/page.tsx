@@ -4,6 +4,11 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 // ─── DB Network Canvas Background ───────────────────────────────────────────
+//
+// Palette rationale: SQL (ANSI/ISO standard, declarative, reads data) gets a
+// cool sky-blue identity. PL/SQL (Oracle's procedural extension) gets a warm
+// ember-red identity, a nod to Oracle's own brand color. The two halves meet
+// in the middle as a literal color blend — the "wire" connecting them.
 
 interface Node {
   x: number;
@@ -64,15 +69,15 @@ function DBCanvas() {
       });
     }
 
+    // sky-blue (left, SQL) → ember (right, PL/SQL)
     function getNodeColor(n: Node, alpha: number): string {
       const cx = n.x / W;
-      if (cx < 0.44) return `rgba(255,255,255,${alpha})`;
-      if (cx > 0.56) return `rgba(200,80,255,${alpha})`;
-      // blend zone
+      if (cx < 0.44) return `rgba(214,238,255,${alpha})`;
+      if (cx > 0.56) return `rgba(255,91,57,${alpha})`;
       const t = (cx - 0.44) / 0.12;
-      const r = Math.round(255 - t * 55);
-      const g = Math.round(255 - t * 175);
-      const b = 255;
+      const r = Math.round(214 + t * (255 - 214));
+      const g = Math.round(238 - t * (238 - 91));
+      const b = Math.round(255 - t * (255 - 57));
       return `rgba(${r},${g},${b},${alpha})`;
     }
 
@@ -88,11 +93,14 @@ function DBCanvas() {
             (col % 2 ? (size * Math.sqrt(3)) / 2 : 0);
           const cx = x / W;
           let color: string;
-          if (cx < 0.44) color = "rgba(255,255,255,0.035)";
-          else if (cx > 0.56) color = "rgba(200,80,255,0.04)";
+          if (cx < 0.44) color = "rgba(148,199,255,0.035)";
+          else if (cx > 0.56) color = "rgba(255,91,57,0.04)";
           else {
             const t = (cx - 0.44) / 0.12;
-            color = `rgba(${Math.round(255 - t * 55)},${Math.round(255 - t * 175)},255,0.035)`;
+            const r = Math.round(148 + t * (255 - 148));
+            const g = Math.round(199 - t * (199 - 91));
+            const b = Math.round(255 - t * (255 - 57));
+            color = `rgba(${r},${g},${b},0.035)`;
           }
           ctx.beginPath();
           for (let i = 0; i < 6; i++) {
@@ -113,18 +121,17 @@ function DBCanvas() {
     function draw() {
       ctx.clearRect(0, 0, W, H);
 
-      // Split background gradients (rich dark theme inspired by M# 2026)
       const leftGrad = ctx.createLinearGradient(0, 0, W * 0.5, H);
-      leftGrad.addColorStop(0, "#080d1a");
-      leftGrad.addColorStop(0.5, "#0c1426");
-      leftGrad.addColorStop(1, "#060a14");
+      leftGrad.addColorStop(0, "#081221");
+      leftGrad.addColorStop(0.5, "#0b1c33");
+      leftGrad.addColorStop(1, "#05090f");
       ctx.fillStyle = leftGrad;
       ctx.fillRect(0, 0, W * 0.5, H);
 
       const rightGrad = ctx.createLinearGradient(W * 0.5, 0, W, H);
-      rightGrad.addColorStop(0, "#130924");
-      rightGrad.addColorStop(0.5, "#1a0b30");
-      rightGrad.addColorStop(1, "#0d0519");
+      rightGrad.addColorStop(0, "#1c0b06");
+      rightGrad.addColorStop(0.5, "#2a1006");
+      rightGrad.addColorStop(1, "#0f0503");
       ctx.fillStyle = rightGrad;
       ctx.fillRect(W * 0.5, 0, W * 0.5, H);
 
@@ -132,7 +139,6 @@ function DBCanvas() {
 
       const nodes = nodesRef.current;
 
-      // Draw connections
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const dx = nodes[i].x - nodes[j].x;
@@ -144,9 +150,9 @@ function DBCanvas() {
             const midX = (nodes[i].x + nodes[j].x) / 2;
             const cx = midX / W;
             let color: string;
-            if (cx < 0.44) color = `rgba(255,255,255,${alpha * 0.6})`;
-            else if (cx > 0.56) color = `rgba(200,80,255,${alpha})`;
-            else color = `rgba(225,180,255,${alpha * 0.8})`;
+            if (cx < 0.44) color = `rgba(214,238,255,${alpha * 0.6})`;
+            else if (cx > 0.56) color = `rgba(255,91,57,${alpha})`;
+            else color = `rgba(255,196,170,${alpha * 0.8})`;
             ctx.beginPath();
             ctx.moveTo(nodes[i].x, nodes[i].y);
             ctx.lineTo(nodes[j].x, nodes[j].y);
@@ -157,13 +163,11 @@ function DBCanvas() {
         }
       }
 
-      // Draw nodes
       for (const n of nodes) {
         n.pulse += n.pulseSpeed;
         const pulseFactor = 0.7 + 0.3 * Math.sin(n.pulse);
         const alpha = 0.5 + 0.5 * pulseFactor;
 
-        // Outer glow
         const grd = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 3);
         const baseColor = getNodeColor(n, alpha * 0.4);
         grd.addColorStop(0, getNodeColor(n, alpha * 0.9));
@@ -174,26 +178,23 @@ function DBCanvas() {
         ctx.fillStyle = grd;
         ctx.fill();
 
-        // Core
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.r * pulseFactor, 0, Math.PI * 2);
         ctx.fillStyle = getNodeColor(n, alpha);
         ctx.fill();
 
-        // Update
         n.x += n.vx;
         n.y += n.vy;
         if (n.x < -10 || n.x > W + 10) n.vx *= -1;
         if (n.y < -10 || n.y > H + 10) n.vy *= -1;
       }
 
-      // Center blend glow
       const blendGrad = ctx.createLinearGradient(W * 0.38, 0, W * 0.62, 0);
-      blendGrad.addColorStop(0, "rgba(255,255,255,0)");
-      blendGrad.addColorStop(0.3, "rgba(255,255,255,0.03)");
-      blendGrad.addColorStop(0.5, "rgba(180,140,255,0.06)");
-      blendGrad.addColorStop(0.7, "rgba(190,80,255,0.04)");
-      blendGrad.addColorStop(1, "rgba(200,80,255,0)");
+      blendGrad.addColorStop(0, "rgba(125,211,252,0)");
+      blendGrad.addColorStop(0.3, "rgba(125,211,252,0.045)");
+      blendGrad.addColorStop(0.5, "rgba(255,255,255,0.055)");
+      blendGrad.addColorStop(0.7, "rgba(255,91,57,0.045)");
+      blendGrad.addColorStop(1, "rgba(255,91,57,0)");
       ctx.fillStyle = blendGrad;
       ctx.fillRect(W * 0.38, 0, W * 0.24, H);
 
@@ -228,7 +229,6 @@ function TypewriterHeading({
   useEffect(() => {
     let i = 0;
     setDisplayed("");
-    // 900ms total duration ensures "SQL" (3 chars) and "PL/SQL" (6 chars) finish simultaneously
     const intervalTime = 900 / text.length;
     const t = setInterval(() => {
       setDisplayed(text.slice(0, i + 1));
@@ -244,7 +244,7 @@ function TypewriterHeading({
   );
 }
 
-// ─── Enhanced Background Terminal Code Stream ─────────────────────────────────
+// ─── Background Terminal Code Stream ─────────────────────────────────────────
 
 function BackgroundCode({
   lines,
@@ -260,8 +260,6 @@ function BackgroundCode({
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
 
-  // Monitor when typing reaches the bottom-right corner of the section:
-  // As soon as content overflows the visible container height, immediately restart at top-left.
   useEffect(() => {
     const el = containerRef.current;
     if (el && displayedLines.length > 2) {
@@ -488,7 +486,7 @@ const PLSQL_LINES = [
   "/",
 ];
 
-// ─── Divider with Lightning Bolt ──────────────────────────────────────────────
+// ─── Divider ──────────────────────────────────────────────────────────────────
 
 function Divider() {
   return (
@@ -496,16 +494,14 @@ function Divider() {
       className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none"
       style={{ width: "3px" }}
     >
-      {/* Main glowing line */}
       <div
         className="divider-glow w-full flex-1"
         style={{
           background:
-            "linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.75) 30%, rgba(255,255,255,0.95) 50%, rgba(180,80,255,0.7) 70%, rgba(200,80,255,0.1) 100%)",
+            "linear-gradient(to bottom, rgba(214,238,255,0.18) 0%, rgba(214,238,255,0.75) 30%, rgba(255,255,255,0.95) 50%, rgba(255,91,57,0.75) 70%, rgba(255,91,57,0.12) 100%)",
         }}
       />
 
-      {/* Connector icons along the divider */}
       {[15, 30, 45, 60, 75, 90].map((pct) => (
         <div
           key={pct}
@@ -517,21 +513,20 @@ function Divider() {
             borderRadius: "50%",
             background:
               pct < 50
-                ? "rgba(255,255,255,0.95)"
+                ? "rgba(214,238,255,0.95)"
                 : pct > 50
-                  ? "rgba(200,80,255,0.9)"
-                  : "rgba(220,180,255,0.9)",
+                  ? "rgba(255,91,57,0.9)"
+                  : "rgba(255,255,255,0.95)",
             boxShadow:
               pct < 50
-                ? "0 0 12px rgba(255,255,255,0.9)"
-                : "0 0 12px rgba(200,80,255,0.8)",
+                ? "0 0 12px rgba(214,238,255,0.9)"
+                : "0 0 12px rgba(255,91,57,0.85)",
             transform: "translate(-50%)",
             animationDelay: `${pct * 0.08}s`,
           }}
         />
       ))}
 
-      {/* SVG connection lines going sideways */}
       <svg
         className="absolute inset-0 overflow-visible pointer-events-none"
         style={{ width: "200px", left: "-99px", top: 0, height: "100%" }}
@@ -544,7 +539,7 @@ function Divider() {
               y1={`${pct}%`}
               x2="0"
               y2={`${pct - 5 + i * 2}%`}
-              stroke="rgba(255,255,255,0.35)"
+              stroke="rgba(214,238,255,0.35)"
               strokeWidth="1"
               strokeDasharray="4 4"
               className="connection-line"
@@ -555,7 +550,7 @@ function Divider() {
               y1={`${pct}%`}
               x2="200"
               y2={`${pct + 3 - i}%`}
-              stroke="rgba(200,80,255,0.3)"
+              stroke="rgba(255,91,57,0.32)"
               strokeWidth="1"
               strokeDasharray="4 4"
               className="connection-line"
@@ -571,18 +566,102 @@ function Divider() {
 // ─── Flow Particles ───────────────────────────────────────────────────────────
 
 const PARTICLES = [
-  { id: 0, left: "8%", duration: "8.4s", delay: "0.5s", size: 1.8, color: "rgba(73, 151, 235, 0.75)" },
-  { id: 1, left: "16%", duration: "11.2s", delay: "2.1s", size: 2.4, color: "rgba(73, 151, 235, 0.75)" },
-  { id: 2, left: "24%", duration: "7.6s", delay: "1.4s", size: 1.5, color: "rgba(73, 151, 235, 0.75)" },
-  { id: 3, left: "32%", duration: "12.8s", delay: "3.7s", size: 2.9, color: "rgba(73, 151, 235, 0.75)" },
-  { id: 4, left: "40%", duration: "9.5s", delay: "0.9s", size: 1.7, color: "rgba(73, 151, 235, 0.75)" },
-  { id: 5, left: "48%", duration: "10.4s", delay: "4.2s", size: 2.2, color: "rgba(73, 151, 235, 0.75)" },
-  { id: 6, left: "52%", duration: "8.9s", delay: "1.8s", size: 2.6, color: "rgba(200,80,255,0.6)" },
-  { id: 7, left: "60%", duration: "13.1s", delay: "3.2s", size: 1.6, color: "rgba(200,80,255,0.6)" },
-  { id: 8, left: "68%", duration: "7.8s", delay: "0.3s", size: 2.1, color: "rgba(200,80,255,0.6)" },
-  { id: 9, left: "76%", duration: "11.7s", delay: "4.8s", size: 2.8, color: "rgba(200,80,255,0.6)" },
-  { id: 10, left: "84%", duration: "9.1s", delay: "2.5s", size: 1.9, color: "rgba(200,80,255,0.6)" },
-  { id: 11, left: "92%", duration: "12.3s", delay: "1.1s", size: 2.5, color: "rgba(200,80,255,0.6)" },
+  {
+    id: 0,
+    left: "8%",
+    duration: "8.4s",
+    delay: "0.5s",
+    size: 1.8,
+    color: "rgba(56,189,248,0.75)",
+  },
+  {
+    id: 1,
+    left: "16%",
+    duration: "11.2s",
+    delay: "2.1s",
+    size: 2.4,
+    color: "rgba(56,189,248,0.75)",
+  },
+  {
+    id: 2,
+    left: "24%",
+    duration: "7.6s",
+    delay: "1.4s",
+    size: 1.5,
+    color: "rgba(56,189,248,0.75)",
+  },
+  {
+    id: 3,
+    left: "32%",
+    duration: "12.8s",
+    delay: "3.7s",
+    size: 2.9,
+    color: "rgba(56,189,248,0.75)",
+  },
+  {
+    id: 4,
+    left: "40%",
+    duration: "9.5s",
+    delay: "0.9s",
+    size: 1.7,
+    color: "rgba(56,189,248,0.75)",
+  },
+  {
+    id: 5,
+    left: "48%",
+    duration: "10.4s",
+    delay: "4.2s",
+    size: 2.2,
+    color: "rgba(56,189,248,0.75)",
+  },
+  {
+    id: 6,
+    left: "52%",
+    duration: "8.9s",
+    delay: "1.8s",
+    size: 2.6,
+    color: "rgba(255,91,57,0.65)",
+  },
+  {
+    id: 7,
+    left: "60%",
+    duration: "13.1s",
+    delay: "3.2s",
+    size: 1.6,
+    color: "rgba(255,91,57,0.65)",
+  },
+  {
+    id: 8,
+    left: "68%",
+    duration: "7.8s",
+    delay: "0.3s",
+    size: 2.1,
+    color: "rgba(255,91,57,0.65)",
+  },
+  {
+    id: 9,
+    left: "76%",
+    duration: "11.7s",
+    delay: "4.8s",
+    size: 2.8,
+    color: "rgba(255,91,57,0.65)",
+  },
+  {
+    id: 10,
+    left: "84%",
+    duration: "9.1s",
+    delay: "2.5s",
+    size: 1.9,
+    color: "rgba(255,91,57,0.65)",
+  },
+  {
+    id: 11,
+    left: "92%",
+    duration: "12.3s",
+    delay: "1.1s",
+    size: 2.5,
+    color: "rgba(255,91,57,0.65)",
+  },
 ];
 
 function FlowParticles() {
@@ -633,29 +712,36 @@ export default function App() {
 
   return (
     <div
-      className="relative w-full h-screen overflow-hidden select-none bg-[#090b14]"
+      className="relative w-full h-screen overflow-hidden select-none bg-[#050810]"
       style={{ fontFamily: "'Outfit', var(--font-geist-sans), sans-serif" }}
     >
-      {/* Background canvas */}
       <DBCanvas />
       <FlowParticles />
 
-      {/* PL/SQL Feedback Toast */}
       {plsqlToast && (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl bg-[#140b24]/95 border border-purple-500/50 text-purple-200 text-xs sm:text-sm font-medium shadow-[0_0_30px_rgba(168,85,247,0.4)] flex items-center gap-3 backdrop-blur-md animate-bounce">
+        <div
+          className="absolute top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-medium shadow-[0_0_30px_rgba(255,91,57,0.35)] flex items-center gap-3 backdrop-blur-md animate-bounce"
+          style={{
+            background: "rgba(26,10,6,0.95)",
+            border: "1px solid rgba(255,91,57,0.45)",
+            color: "#FFD3C2",
+          }}
+        >
           <span className="text-base">⚡</span>
-          <span>PL/SQL procedural engine is currently in development! Stay tuned.</span>
+          <span>
+            The PL/SQL workspace is still being built — SQL is ready now.
+          </span>
           <button
             type="button"
             onClick={() => setPlsqlToast(false)}
-            className="ml-2 text-purple-400 hover:text-white"
+            className="ml-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-300 rounded"
+            style={{ color: "#FF8B5E" }}
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* Split layout */}
       <div className="relative z-10 w-full h-full flex pb-[72px] overflow-hidden">
         {/* ── LEFT: SQL ── */}
         <div
@@ -672,63 +758,60 @@ export default function App() {
             opacity: view === "plsql" ? 0 : 1,
           }}
         >
-          {/* Rich dark midnight slate tint overlay (inspired by M# 2026 dark atmosphere) */}
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ backgroundColor: "#0b1224", opacity: 0.45 }}
+            style={{ backgroundColor: "#081221", opacity: 0.45 }}
           />
 
-          {/* Full-section blurred background code stream in white */}
           <div
             className="absolute inset-0 pointer-events-none overflow-hidden"
             style={{ filter: "blur(1.5px)", opacity: 0.32 }}
           >
-            <BackgroundCode lines={SQL_LINES} color="#FFFFFF" />
+            <BackgroundCode lines={SQL_LINES} color="#BFE3FF" />
           </div>
 
-          {/* Atmospheric subtle radial glow */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                "radial-gradient(ellipse at 30% 50%, rgba(99,102,241,0.12) 0%, transparent 70%)",
+                "radial-gradient(ellipse at 30% 50%, rgba(56,189,248,0.12) 0%, transparent 70%)",
             }}
           />
 
-          {/* Foreground content in pure white */}
           <div className="relative z-10 w-full max-w-lg space-y-6 md:space-y-8 flex flex-col items-center">
-            {/* Badge */}
             <div className="flex justify-center">
               <span
-                className="text-xs tracking-[0.2em] uppercase px-4 py-1.5 rounded-full border backdrop-blur-md"
+                className="text-xs px-4 py-1.5 rounded-full border backdrop-blur-md"
                 style={{
-                  color: "#FFFFFF",
-                  borderColor: "rgba(255,255,255,0.25)",
-                  background: "rgba(255,255,255,0.06)",
-                  fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
+                  color: "#E2F7FF",
+                  borderColor: "rgba(125,211,252,0.35)",
+                  background: "rgba(125,211,252,0.08)",
+                  fontFamily:
+                    "'JetBrains Mono', var(--font-geist-mono), monospace",
+                  letterSpacing: "0.03em",
                 }}
               >
                 Structured Query Language
               </span>
             </div>
 
-            {/* Heading */}
             <div className="text-center">
               <TypewriterHeading
                 text="SQL"
                 className="font-bold leading-none tracking-tight"
                 style={{
                   fontSize: "clamp(3.5rem, 8vw, 6rem)",
-                  color: "#FFFFFF",
+                  color: "#F3FBFF",
                   textShadow:
-                    "0 0 50px rgba(255,255,255,0.45), 0 0 100px rgba(255,255,255,0.18)",
+                    "0 0 50px rgba(125,211,252,0.5), 0 0 100px rgba(56,189,248,0.2)",
                 }}
               />
               <p
-                className="mt-3 text-sm md:text-base font-light tracking-wide"
-                style={{ color: "rgba(255,255,255,0.85)" }}
+                className="mt-3 text-sm md:text-base font-light tracking-wide max-w-sm mx-auto"
+                style={{ color: "rgba(226,247,255,0.85)" }}
               >
-                Query. Filter. Aggregate. Retrieve.
+                Describe the result you want — the engine works out how to get
+                it.
               </p>
             </div>
           </div>
@@ -757,62 +840,60 @@ export default function App() {
             opacity: view === "sql" ? 0 : 1,
           }}
         >
-          {/* Rich dark purple overlay */}
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ backgroundColor: "#140a26", opacity: 0.45 }}
+            style={{ backgroundColor: "#1c0b06", opacity: 0.45 }}
           />
 
-          {/* Full-section blurred background code stream */}
           <div
             className="absolute inset-0 pointer-events-none overflow-hidden"
             style={{ filter: "blur(1.5px)", opacity: 0.32 }}
           >
-            <BackgroundCode lines={PLSQL_LINES} color="#f06bff" />
+            <BackgroundCode lines={PLSQL_LINES} color="#FFB199" />
           </div>
 
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                "radial-gradient(ellipse at 70% 50%, rgba(168,85,247,0.12) 0%, transparent 70%)",
+                "radial-gradient(ellipse at 70% 50%, rgba(255,91,57,0.12) 0%, transparent 70%)",
             }}
           />
 
-          {/* Foreground content */}
           <div className="relative z-10 w-full max-w-lg space-y-6 md:space-y-8 flex flex-col items-center">
-            {/* Badge */}
             <div className="flex justify-center">
               <span
-                className="text-xs tracking-[0.2em] uppercase px-4 py-1.5 rounded-full border backdrop-blur-md"
+                className="text-xs px-4 py-1.5 rounded-full border backdrop-blur-md"
                 style={{
-                  color: "#f06bff",
-                  borderColor: "rgba(240,107,255,0.3)",
-                  background: "rgba(240,107,255,0.08)",
-                  fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
+                  color: "#FFD9C7",
+                  borderColor: "rgba(255,91,57,0.35)",
+                  background: "rgba(255,91,57,0.08)",
+                  fontFamily:
+                    "'JetBrains Mono', var(--font-geist-mono), monospace",
+                  letterSpacing: "0.03em",
                 }}
               >
-                Procedural Language / SQL
+                Oracle's procedural extension to SQL
               </span>
             </div>
 
-            {/* Heading */}
             <div className="text-center">
               <TypewriterHeading
                 text="PL/SQL"
                 className="font-bold leading-none tracking-tight"
                 style={{
                   fontSize: "clamp(3.5rem, 8vw, 6rem)",
-                  color: "#f06bff",
+                  color: "#fce3f0",
                   textShadow:
-                    "0 0 60px rgba(240,107,255,0.4), 0 0 120px rgba(240,107,255,0.15)",
+                    "0 0 60px rgba(255,106,61,0.45), 0 0 120px rgba(255,106,61,0.18)",
                 }}
               />
               <p
-                className="mt-3 text-sm md:text-base font-light tracking-wide"
-                style={{ color: "rgba(200,80,240,0.8)" }}
+                className="mt-3 text-sm md:text-base font-light tracking-wide max-w-sm mx-auto"
+                style={{ color: "rgba(255,214,199,0.85)" }}
               >
-                Procedures. Triggers. Control Flow.
+                Write the steps yourself — loops, conditions, and control flow
+                live here.
               </p>
             </div>
           </div>
@@ -824,37 +905,37 @@ export default function App() {
         className="absolute bottom-0 left-0 right-0 z-30 flex"
         style={{ height: "72px" }}
       >
-        {/* SQL Button - redirects to /sql */}
+        {/* SQL Button */}
         <Link
           href="/sql"
-          className="flex-1 flex items-center justify-center gap-3 text-sm font-semibold tracking-widest uppercase transition-all duration-300 group"
+          className="flex-1 flex items-center justify-center gap-3 text-sm font-semibold transition-all duration-300 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-inset"
           style={{
-            background: "rgba(11,18,36,0.88)",
-            borderTop: "1px solid rgba(255,255,255,0.2)",
-            color: "#FFFFFF",
+            background: "rgba(8,18,33,0.88)",
+            borderTop: "1px solid rgba(125,211,252,0.25)",
+            color: "#F3FBFF",
             fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
             backdropFilter: "blur(16px)",
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.background =
-              "rgba(255,255,255,0.12)";
+              "rgba(125,211,252,0.12)";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLElement).style.background =
-              "rgba(11,18,36,0.88)";
+              "rgba(8,18,33,0.88)";
           }}
         >
           <span
             className="w-6 h-6 rounded-sm flex items-center justify-center text-xs"
             style={{
-              background: "rgba(255,255,255,0.12)",
-              border: "1px solid rgba(255,255,255,0.25)",
-              color: "#FFFFFF",
+              background: "rgba(125,211,252,0.15)",
+              border: "1px solid rgba(125,211,252,0.3)",
+              color: "#F3FBFF",
             }}
           >
             ⬡
           </span>
-          Explore SQL
+          Start querying
           <svg
             width="14"
             height="14"
@@ -865,42 +946,41 @@ export default function App() {
           >
             <path
               d="M7 2l5 5-5 5M2 7h10"
-              stroke="#FFFFFF"
+              stroke="#F3FBFF"
               strokeWidth="1.5"
               strokeLinecap="round"
             />
           </svg>
         </Link>
 
-        {/* Center connector indicator */}
         <div
           className="flex items-center justify-center"
           style={{
             width: "3px",
             background:
-              "linear-gradient(to bottom, rgba(255,255,255,0.4), rgba(168,85,247,0.5))",
+              "linear-gradient(to bottom, rgba(125,211,252,0.5), rgba(255,91,57,0.55))",
           }}
         />
 
-        {/* PL/SQL Button - toggles view / notification */}
+        {/* PL/SQL Button */}
         <button
           type="button"
           onClick={handlePlSqlClick}
-          className="flex-1 flex items-center justify-center gap-3 text-sm font-semibold tracking-widest uppercase transition-all duration-300 cursor-pointer group"
+          className="flex-1 flex items-center justify-center gap-3 text-sm font-semibold transition-all duration-300 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 focus-visible:ring-inset"
           style={{
-            background: "rgba(20,10,38,0.88)",
-            borderTop: "1px solid rgba(200,80,255,0.3)",
-            color: "#f06bff",
+            background: "rgba(55,16,37, 0.75)",
+            borderTop: "1px solid rgba(255,91,57,0.3)",
+            color: "#FF9A6C",
             fontFamily: "'JetBrains Mono', var(--font-geist-mono), monospace",
             backdropFilter: "blur(16px)",
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background =
-              "rgba(200,80,255,0.15)";
+              "rgba(82, 24, 55, 0.4)";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background =
-              "rgba(20,10,38,0.88)";
+              "rgba(55,16,37, 0.75)";
           }}
         >
           <svg
@@ -918,12 +998,12 @@ export default function App() {
               strokeLinecap="round"
             />
           </svg>
-          Explore PL/SQL
+          Start scripting
           <span
             className="w-6 h-6 rounded-sm flex items-center justify-center text-xs"
             style={{
-              background: "rgba(200,80,255,0.15)",
-              border: "1px solid rgba(200,80,255,0.3)",
+              background: "rgba(55,16,37,0.15)",
+              border: "1px solid rgba(255,91,57,0.3)",
             }}
           >
             ⬡
