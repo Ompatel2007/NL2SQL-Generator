@@ -179,7 +179,14 @@ export default function PlSqlPage() {
   // Load theme from localStorage on mount
   useEffect(() => {
     try {
-      const savedTheme = localStorage.getItem("nlp-sql-theme") || "slate";
+      let savedTheme = localStorage.getItem("nlp-sql-theme") || "slate";
+      const legacyMap: Record<string, ThemeId> = {
+        "blue-light": "pearl",
+        greyscale: "slate",
+        dark: "slate",
+        light: "pearl",
+      };
+      if (legacyMap[savedTheme]) savedTheme = legacyMap[savedTheme];
       const valid: ThemeId[] = ["slate", "pearl"];
       const activeTheme = valid.includes(savedTheme as ThemeId)
         ? (savedTheme as ThemeId)
