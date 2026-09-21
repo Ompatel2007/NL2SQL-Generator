@@ -62,14 +62,21 @@ export function AppHeader({
           {mode && (
             <div
               className="hidden sm:flex items-center rounded-lg border p-0.5 text-xs font-mono"
-              style={{ borderColor: "var(--border)", background: "var(--surface-subtle)" }}
+              style={{
+                borderColor: isDark ? "var(--border)" : "#cbd5e1",
+                background: isDark ? "var(--surface-subtle)" : "#f1f5f9",
+              }}
             >
               <Link
                 href="/sql"
                 className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
                   mode === "sql"
-                    ? "bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-xs"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? isDark
+                      ? "bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-xs font-bold"
+                      : "bg-sky-100 text-black border border-sky-400 shadow-xs font-bold"
+                    : isDark
+                      ? "text-zinc-400 hover:text-zinc-200"
+                      : "text-zinc-800 hover:text-black font-semibold"
                 }`}
               >
                 SQL
@@ -78,8 +85,12 @@ export function AppHeader({
                 href="/plsql"
                 className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
                   mode === "plsql"
-                    ? "bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-xs"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? isDark
+                      ? "bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-xs font-bold"
+                      : "bg-orange-100 text-black border border-orange-400 shadow-xs font-bold"
+                    : isDark
+                      ? "text-zinc-400 hover:text-zinc-200"
+                      : "text-zinc-800 hover:text-black font-semibold"
                 }`}
               >
                 PL/SQL

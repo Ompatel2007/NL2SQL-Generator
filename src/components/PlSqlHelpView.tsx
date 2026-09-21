@@ -19,7 +19,7 @@ function HelpSubcard({
 
   return (
     <div
-      className="rounded-lg border transition-all overflow-hidden"
+      className="rounded-xl border transition-all overflow-hidden shadow-2xs"
       style={{
         borderColor: isOpen ? "var(--accent)" : "var(--border)",
         background: "var(--surface-subtle)",
@@ -28,9 +28,9 @@ function HelpSubcard({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-3.5 flex items-center justify-between text-left cursor-pointer transition-colors hover:opacity-90 focus:outline-none"
+        className="w-full p-3.5 flex items-center justify-between text-left cursor-pointer transition-colors hover:opacity-95 focus:outline-none"
         style={{
-          background: isOpen ? "rgba(var(--accent-rgb, 99, 102, 241), 0.08)" : "transparent",
+          background: isOpen ? "rgba(var(--accent-rgb, 255, 106, 61), 0.08)" : "transparent",
         }}
       >
         <span className="font-semibold text-xs md:text-sm uppercase tracking-wider text-[var(--accent)]">
@@ -43,7 +43,14 @@ function HelpSubcard({
       </button>
 
       {isOpen && (
-        <div className="p-4 pt-1 text-xs md:text-sm leading-relaxed border-t border-zinc-800/40" style={{ color: "var(--foreground)" }}>
+        <div
+          className="p-4 pt-3 text-xs md:text-sm leading-relaxed border-t"
+          style={{
+            borderColor: "var(--border)",
+            background: "var(--panel)",
+            color: "var(--foreground)",
+          }}
+        >
           {content}
         </div>
       )}

@@ -25,24 +25,28 @@ function PlSqlLearnCard({
 }) {
   return (
     <div
-      className="rounded-xl border transition-all overflow-hidden"
+      className="rounded-xl border transition-all overflow-hidden shadow-xs"
       style={{
         background: "var(--panel)",
-        borderColor: "var(--border)",
+        borderColor: isOpen ? "var(--accent)" : "var(--border)",
+        boxShadow: isOpen ? "0 0 0 1px var(--accent)" : undefined,
       }}
     >
       <button
         type="button"
         onClick={onToggle}
-        className="w-full p-4 flex items-center justify-between text-left cursor-pointer hover:bg-zinc-800/20 transition-colors"
+        className="w-full p-4 flex items-center justify-between text-left cursor-pointer transition-colors hover:opacity-95"
+        style={{
+          background: isOpen ? "rgba(var(--accent-rgb, 255, 106, 61), 0.08)" : "transparent",
+        }}
       >
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <span
-              className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
+              className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border"
               style={{
-                background: "var(--surface-subtle)",
-                borderColor: "var(--border)",
+                background: "rgba(var(--accent-rgb, 255, 106, 61), 0.12)",
+                borderColor: "rgba(var(--accent-rgb, 255, 106, 61), 0.3)",
                 color: "var(--accent)",
               }}
             >
@@ -53,16 +57,16 @@ function PlSqlLearnCard({
           <p className="text-xs text-[var(--muted)]">{subtitle}</p>
         </div>
 
-        <div className="flex items-center gap-2 text-[var(--muted)] text-xs">
-          <span className="hidden sm:inline font-mono">{isOpen ? "Hide" : "Click to view"}</span>
+        <div className="flex items-center gap-2 text-xs" style={{ color: isOpen ? "var(--accent)" : "var(--muted)" }}>
+          <span className="hidden sm:inline font-mono font-medium">{isOpen ? "Hide" : "Click to view"}</span>
           <span className="text-sm">{isOpen ? "▲" : "▼"}</span>
         </div>
       </button>
 
       {isOpen && (
-        <div className="p-4 pt-1 border-t flex flex-col gap-3" style={{ borderColor: "var(--border)" }}>
+        <div className="p-4 pt-2 border-t flex flex-col gap-3" style={{ borderColor: "var(--border)", background: "var(--panel)" }}>
           <div
-            className="p-3 rounded-lg font-mono text-xs overflow-x-auto leading-relaxed border"
+            className="p-3.5 rounded-xl font-mono text-xs overflow-x-auto leading-relaxed border shadow-inner"
             style={{
               background: "var(--surface-subtle)",
               borderColor: "var(--border)",
@@ -71,7 +75,7 @@ function PlSqlLearnCard({
           >
             <pre>{code}</pre>
           </div>
-          <p className="text-xs leading-relaxed font-sans" style={{ color: "var(--foreground)" }}>
+          <p className="text-xs leading-relaxed font-sans px-1" style={{ color: "var(--foreground)" }}>
             {explanation}
           </p>
         </div>
@@ -304,7 +308,7 @@ export function PlSqlLearnView({}: PlSqlLearnViewProps) {
           <button
             type="button"
             onClick={expandAll}
-            className="px-3 py-2 rounded-lg text-xs md:text-sm font-semibold border transition-all cursor-pointer hover:opacity-90"
+            className="px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold border transition-all cursor-pointer hover:border-[var(--accent)] hover:text-[var(--accent)] shadow-2xs active:scale-95"
             style={{
               background: "var(--surface-subtle)",
               borderColor: "var(--border)",
@@ -316,7 +320,7 @@ export function PlSqlLearnView({}: PlSqlLearnViewProps) {
           <button
             type="button"
             onClick={collapseAll}
-            className="px-3 py-2 rounded-lg text-xs md:text-sm font-semibold border transition-all cursor-pointer hover:opacity-90"
+            className="px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold border transition-all cursor-pointer hover:border-[var(--accent)] hover:text-[var(--accent)] shadow-2xs active:scale-95"
             style={{
               background: "var(--surface-subtle)",
               borderColor: "var(--border)",

@@ -704,7 +704,11 @@ export default function PlSqlPage() {
             className="hidden lg:flex w-3 hover:w-4 items-center justify-center cursor-col-resize group relative z-10 shrink-0 transition-all self-stretch"
             title="Drag to resize panel or click arrow to collapse"
           >
-            <div className="w-1 h-12 rounded-full bg-zinc-600/30 group-hover:bg-[#FF5B39] transition-colors flex items-center justify-center">
+            <div className={`w-1.5 h-12 rounded-full transition-colors flex items-center justify-center ${
+              isDark
+                ? "bg-zinc-600/40 group-hover:bg-[#FF5B39]"
+                : "bg-orange-400 hover:bg-[#FF5B39] group-hover:bg-[#FF5B39] shadow-xs"
+            }`}>
               <button
                 type="button"
                 onClick={(e) => {
@@ -712,7 +716,7 @@ export default function PlSqlPage() {
                   setLeftCollapsed((prev) => !prev);
                 }}
                 title={leftCollapsed ? "Expand Left Panel" : "Collapse Left Panel"}
-                className="text-[9px] px-0.5 py-2 rounded bg-[var(--panel)] border border-[var(--border)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer font-bold shadow-xs"
+                className="text-[9px] px-0.5 py-2 rounded bg-[var(--panel)] border border-[var(--border)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer font-bold shadow-xs text-[var(--foreground)]"
               >
                 {leftCollapsed ? "▶" : "◀"}
               </button>

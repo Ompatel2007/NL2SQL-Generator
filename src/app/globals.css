@@ -5,7 +5,7 @@
    [Commented out: Eclipse, Lazuli, Volt]
    ========================================================================= */
 
-/* 1. Slate (Default Monochrome Greyscale Dark) */
+/* 1. Slate (Orange & Dark Theme) */
 :root,
 html[data-theme="slate"],
 .theme-slate {
@@ -16,36 +16,38 @@ html[data-theme="slate"],
   --surface-subtle: #18181c;
   --surface-hover: #24242c;
   --border: #27272f;
-  --accent: #ffffff;
-  --accent-gradient: linear-gradient(135deg, #ffffff 0%, #e4e4e7 100%);
-  --accent-foreground: #09090b;
-  --accent-subtle: #27272a;
+  --accent: #FF6A3D;
+  --accent-rgb: 255, 106, 61;
+  --accent-gradient: linear-gradient(135deg, #FF6A3D 0%, #D83B01 100%);
+  --accent-foreground: #ffffff;
+  --accent-subtle: rgba(255, 106, 61, 0.15);
   --muted: #a1a1aa;
   --er-bg: #000000;
-  --scrollbar-thumb-from: #52525b;
-  --scrollbar-thumb-to: #3f3f46;
-  --scrollbar-thumb-hover: #71717a;
+  --scrollbar-thumb-from: #FF6A3D;
+  --scrollbar-thumb-to: #D83B01;
+  --scrollbar-thumb-hover: #FF8B5E;
 }
 
-/* 2. Pearl (Original Blue-White Light) */
+/* 2. Pearl (Orange & Soft Grey Light Theme) */
 html[data-theme="pearl"],
 .theme-pearl {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #eaedf2;
+  --foreground: #09090b;
   --panel: #ffffff;
-  --panel-hover: #f1f5f9;
+  --panel-hover: #f8fafc;
   --surface-subtle: #f1f5f9;
   --surface-hover: #e2e8f0;
   --border: #cbd5e1;
-  --accent: #4f46e5;
-  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  --accent: #ea580c;
+  --accent-rgb: 234, 88, 12;
+  --accent-gradient: linear-gradient(135deg, #FF6A3D 0%, #D83B01 100%);
   --accent-foreground: #ffffff;
-  --accent-subtle: #eef2ff;
-  --muted: #475569;
+  --accent-subtle: #fff7ed;
+  --muted: #334155;
   --er-bg: #ffffff;
-  --scrollbar-thumb-from: #818cf8;
-  --scrollbar-thumb-to: #4f46e5;
-  --scrollbar-thumb-hover: #4338ca;
+  --scrollbar-thumb-from: #fb923c;
+  --scrollbar-thumb-to: #ea580c;
+  --scrollbar-thumb-hover: #c2410c;
 }
 
 /*
@@ -158,6 +160,36 @@ button:disabled {
   scrollbar-color: var(--scrollbar-thumb-from) color-mix(in srgb, var(--border) 55%, transparent);
   scrollbar-width: thin;
   transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+/* Light theme panel elevation and crisp card distinction */
+html[data-theme="pearl"] .panel,
+html[data-theme="pearl"] [class*="rounded-2xl"][class*="border"],
+html[data-theme="pearl"] [class*="rounded-xl"][class*="border"] {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Dataset dropdown edit button: white in dark theme, black in light theme */
+html[data-theme="slate"] .dataset-edit-btn,
+.theme-slate .dataset-edit-btn,
+.dark .dataset-edit-btn {
+  color: #ffffff !important;
+}
+html[data-theme="slate"] .dataset-edit-btn svg,
+.theme-slate .dataset-edit-btn svg,
+.dark .dataset-edit-btn svg {
+  stroke: #ffffff !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="pearl"] .dataset-edit-btn,
+.theme-pearl .dataset-edit-btn {
+  color: #000000 !important;
+}
+html[data-theme="pearl"] .dataset-edit-btn svg,
+.theme-pearl .dataset-edit-btn svg {
+  stroke: #000000 !important;
+  color: #000000 !important;
 }
 
 .panel::-webkit-scrollbar,

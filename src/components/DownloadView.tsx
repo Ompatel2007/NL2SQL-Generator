@@ -271,8 +271,8 @@ export function DownloadView({
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center border shrink-0"
             style={{
-              background: "var(--surface-subtle)",
-              borderColor: "var(--border)",
+              background: "rgba(var(--accent-rgb, 255, 106, 61), 0.12)",
+              borderColor: "rgba(var(--accent-rgb, 255, 106, 61), 0.3)",
               color: "var(--accent)",
             }}
           >
@@ -396,13 +396,13 @@ export function DownloadView({
                 type="button"
                 onClick={() => handleDownloadReport("pdf")}
                 disabled={downloadingFormat === "report-pdf"}
-                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95 disabled:opacity-50"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 font-bold">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-bold">
                   PDF
                 </span>
-                <span className="text-xs font-semibold">.pdf</span>
+                <span className="text-xs font-semibold text-[var(--foreground)]">.pdf</span>
                 <span className="text-[10px] opacity-60">With ER Image</span>
               </button>
 
@@ -411,13 +411,13 @@ export function DownloadView({
                 type="button"
                 onClick={() => handleDownloadReport("docx")}
                 disabled={downloadingFormat === "report-docx"}
-                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95 disabled:opacity-50"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 font-bold">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 font-bold">
                   DOCX
                 </span>
-                <span className="text-xs font-semibold">.docx</span>
+                <span className="text-xs font-semibold text-[var(--foreground)]">.docx</span>
                 <span className="text-[10px] opacity-60">Word + Image</span>
               </button>
 
@@ -426,13 +426,13 @@ export function DownloadView({
                 type="button"
                 onClick={() => handleDownloadReport("md")}
                 disabled={downloadingFormat === "report-md"}
-                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95 disabled:opacity-50"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-bold">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 font-bold">
                   MD
                 </span>
-                <span className="text-xs font-semibold">.md</span>
+                <span className="text-xs font-semibold text-[var(--foreground)]">.md</span>
                 <span className="text-[10px] opacity-60">Markdown</span>
               </button>
 
@@ -441,13 +441,13 @@ export function DownloadView({
                 type="button"
                 onClick={() => handleDownloadReport("txt")}
                 disabled={downloadingFormat === "report-txt"}
-                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95 disabled:opacity-50"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold">
                   TXT
                 </span>
-                <span className="text-xs font-semibold">.txt</span>
+                <span className="text-xs font-semibold text-[var(--foreground)]">.txt</span>
                 <span className="text-[10px] opacity-60">Plain Text</span>
               </button>
             </div>
@@ -503,7 +503,7 @@ export function DownloadView({
               <button
                 type="button"
                 onClick={() => handleDownloadResult("csv")}
-                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95"
+                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
                 <span>CSV</span>
@@ -514,10 +514,10 @@ export function DownloadView({
               <button
                 type="button"
                 onClick={() => handleDownloadResult("excel")}
-                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95"
+                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
-                <span className="text-emerald-400 font-bold">Excel</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">Excel</span>
                 <span className="text-[10px] font-mono opacity-60">.xlsx</span>
               </button>
 
@@ -525,7 +525,7 @@ export function DownloadView({
               <button
                 type="button"
                 onClick={() => handleDownloadResult("md")}
-                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95"
+                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
                 <span>Markdown</span>
@@ -536,10 +536,10 @@ export function DownloadView({
               <button
                 type="button"
                 onClick={() => handleDownloadResult("json")}
-                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95"
+                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
-                <span className="text-amber-400 font-bold">JSON</span>
+                <span className="text-amber-600 dark:text-amber-400 font-bold">JSON</span>
                 <span className="text-[10px] font-mono opacity-60">.json</span>
               </button>
 
@@ -547,7 +547,7 @@ export function DownloadView({
               <button
                 type="button"
                 onClick={() => handleDownloadResult("tsv")}
-                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95"
+                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
                 <span>TSV</span>
@@ -558,7 +558,7 @@ export function DownloadView({
               <button
                 type="button"
                 onClick={() => handleDownloadResult("sql")}
-                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95"
+                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
                 <span>SQL</span>
@@ -569,15 +569,20 @@ export function DownloadView({
               <button
                 type="button"
                 onClick={() => handleDownloadResult("db")}
-                className="col-span-2 p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/40 text-purple-300 shadow-xs active:scale-95"
+                className="col-span-2 p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] shadow-xs active:scale-95"
+                style={{
+                  background: "rgba(var(--accent-rgb, 255, 106, 61), 0.08)",
+                  borderColor: "rgba(var(--accent-rgb, 255, 106, 61), 0.35)",
+                  color: "var(--foreground)",
+                }}
               >
                 <span className="flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5" style={{ color: "var(--accent)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
                   </svg>
-                  <span>SQLite Database (.db)</span>
+                  <span className="font-bold">SQLite Database (.db)</span>
                 </span>
-                <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-purple-500/20">Binary .db</span>
+                <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border" style={{ background: "rgba(var(--accent-rgb, 255, 106, 61), 0.15)", borderColor: "rgba(var(--accent-rgb, 255, 106, 61), 0.3)", color: "var(--accent)" }}>Binary .db</span>
               </button>
             </div>
           </div>
@@ -633,13 +638,13 @@ export function DownloadView({
                 type="button"
                 onClick={() => handleDownloadER("svg")}
                 disabled={downloadingFormat === "er-svg"}
-                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95 disabled:opacity-50"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 font-bold">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 font-bold">
                   SVG
                 </span>
-                <span className="text-xs font-semibold">Vector Graphics (.svg)</span>
+                <span className="text-xs font-semibold text-[var(--foreground)]">Vector Graphics (.svg)</span>
                 <span className="text-[10px] opacity-60">Infinite scalable resolution</span>
               </button>
 
@@ -648,13 +653,13 @@ export function DownloadView({
                 type="button"
                 onClick={() => handleDownloadER("png")}
                 disabled={downloadingFormat === "er-png"}
-                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95 disabled:opacity-50"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold">
                   PNG
                 </span>
-                <span className="text-xs font-semibold">High-Res Image (.png)</span>
+                <span className="text-xs font-semibold text-[var(--foreground)]">High-Res Image (.png)</span>
                 <span className="text-[10px] opacity-60">Retina 2x canvas rendering</span>
               </button>
             </div>
@@ -669,7 +674,7 @@ export function DownloadView({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -681,7 +686,7 @@ export function DownloadView({
                   </p>
                 </div>
               </div>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
                 {history.length} Queries Stored
               </span>
             </div>
@@ -697,7 +702,7 @@ export function DownloadView({
                   <div key={h.id || i} className="flex items-center justify-between gap-2 text-[11px]">
                     <span className="font-mono text-[10px] opacity-60 shrink-0">{h.time}</span>
                     <span className="font-mono truncate opacity-90">{h.sql}</span>
-                    <span className="shrink-0 text-[10px] font-semibold text-emerald-400">{h.rows} rows</span>
+                    <span className="shrink-0 text-[10px] font-semibold text-emerald-500 dark:text-emerald-400">{h.rows} rows</span>
                   </div>
                 ))
               )}
@@ -711,7 +716,7 @@ export function DownloadView({
                 type="button"
                 onClick={() => handleDownloadHistory("json")}
                 disabled={history.length === 0}
-                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95 disabled:opacity-40"
+                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95 disabled:opacity-40"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
                 <span>JSON</span>
@@ -722,7 +727,7 @@ export function DownloadView({
                 type="button"
                 onClick={() => handleDownloadHistory("csv")}
                 disabled={history.length === 0}
-                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95 disabled:opacity-40"
+                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95 disabled:opacity-40"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
                 <span>CSV</span>
@@ -733,7 +738,7 @@ export function DownloadView({
                 type="button"
                 onClick={() => handleDownloadHistory("md")}
                 disabled={history.length === 0}
-                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95 disabled:opacity-40"
+                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95 disabled:opacity-40"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
                 <span>Markdown</span>
@@ -744,7 +749,7 @@ export function DownloadView({
                 type="button"
                 onClick={() => handleDownloadHistory("sql")}
                 disabled={history.length === 0}
-                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs active:scale-95 disabled:opacity-40"
+                className="p-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold transition-all cursor-pointer hover:border-[var(--accent)] hover:shadow-xs active:scale-95 disabled:opacity-40"
                 style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
               >
                 <span>SQL Log</span>
@@ -763,7 +768,7 @@ export function DownloadView({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
             </svg>
             <h3 className="text-sm font-bold">Active Dataset Catalog Export ({dataset.name})</h3>
@@ -771,8 +776,11 @@ export function DownloadView({
           <button
             type="button"
             onClick={handleExportDatasetSQL}
-            className="text-xs px-3 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 transition-all cursor-pointer hover:bg-[var(--surface-hover)]"
-            style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
+            className="text-xs px-3.5 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 text-white"
+            style={{
+              background: "var(--accent-gradient)",
+              borderColor: "var(--accent)",
+            }}
           >
             <span>Export DDL &amp; DML (.sql)</span>
           </button>
@@ -784,7 +792,7 @@ export function DownloadView({
               key={tbl.name}
               type="button"
               onClick={() => handleExportTableCSV(tbl)}
-              className="p-2.5 rounded-xl border flex items-center justify-between text-xs transition-all cursor-pointer hover:bg-[var(--surface-hover)] shadow-xs"
+              className="p-2.5 rounded-xl border flex items-center justify-between text-xs transition-all cursor-pointer hover:border-[var(--accent)] shadow-xs"
               style={{ background: "var(--surface-subtle)", borderColor: "var(--border)" }}
             >
               <span className="font-mono text-xs truncate">{tbl.name}.csv</span>

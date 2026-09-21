@@ -415,7 +415,7 @@ function SchemaView({
                 style={{ color: "var(--foreground)", borderColor: "var(--border)" }}
               >
                 <span>{table.name}</span>
-                <span className="text-xs font-medium font-sans opacity-70">
+                <span className="text-xs font-semibold font-sans opacity-85" style={{ color: "var(--foreground)" }}>
                   {table.columns.length} cols
                 </span>
               </h3>
@@ -427,25 +427,25 @@ function SchemaView({
                     {table.columns.map((column) => (
                       <tr key={column.name}>
                         <td
-                          className="py-1 pr-2 font-mono text-sm whitespace-nowrap"
+                          className="py-1 pr-2 font-mono text-sm whitespace-nowrap font-medium"
                           style={{ color: "var(--foreground)" }}
                         >
                           {column.name}
                         </td>
                         <td
-                          className="opacity-60 text-xs whitespace-nowrap pr-2"
+                          className="font-mono text-xs whitespace-nowrap pr-2 font-medium"
                           style={{ color: "var(--muted)" }}
                         >
                           {column.type}
                         </td>
                         <td className="text-right font-mono text-xs whitespace-nowrap">
                           {column.pk && (
-                            <span className="font-bold text-amber-500 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded mr-1 inline-block">
+                            <span className="font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded mr-1 inline-block">
                               PK
                             </span>
                           )}
                           {column.fk && (
-                            <span className="text-sky-500 bg-sky-500/15 border border-sky-500/30 px-1.5 py-0.5 rounded text-xs inline-block font-mono">
+                            <span className="text-sky-600 dark:text-sky-400 bg-sky-500/15 border border-sky-500/30 px-1.5 py-0.5 rounded text-xs inline-block font-mono font-semibold">
                               FK→{column.fk.table}.{column.fk.column}
                             </span>
                           )}
@@ -457,8 +457,8 @@ function SchemaView({
               </div>
             </div>
             <p
-              className="text-xs opacity-60 mt-3 pt-1 border-t"
-              style={{ color: "var(--muted)", borderColor: "var(--border)" }}
+              className="text-xs font-medium opacity-85 mt-3 pt-1 border-t"
+              style={{ color: "var(--foreground)", borderColor: "var(--border)" }}
             >
               {table.rows.length} sample rows
             </p>
