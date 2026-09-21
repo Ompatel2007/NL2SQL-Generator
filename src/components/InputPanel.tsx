@@ -267,7 +267,8 @@ export function InputPanel({
                   onClick={() => setIsMoreMenuOpen((prev) => !prev)}
                   title="Click for more options"
                   aria-label="Click for more options"
-                  className="h-7 px-2 rounded-md  text-zinc-300 hover:bg-zinc-500/10 flex items-center justify-center transition-colors cursor-pointer text-xs font-medium"
+                  className="h-7 px-2 rounded-md opacity-80 hover:opacity-100 hover:bg-[var(--surface-hover)] flex items-center justify-center transition-colors cursor-pointer text-xs font-medium"
+                  style={{ color: "var(--foreground)" }}
                 >
                   <svg
                     className="w-4 h-4"
@@ -839,11 +840,11 @@ export function InputPanel({
               setAssistantResult(immediate);
               onRunQuery();
             }}
-            className="mt-2 w-full py-2 rounded-lg text-sm font-semibold border transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:opacity-90"
+            className="mt-2 w-full py-2 rounded-lg text-sm font-semibold border transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs hover:opacity-95 active:scale-[0.99]"
             style={{
-              background: "var(--surface-subtle)",
-              borderColor: "var(--border)",
-              color: "var(--foreground)",
+              background: "var(--accent-gradient, var(--accent))",
+              borderColor: "var(--accent)",
+              color: "var(--accent-foreground)",
             }}
           >
             <span>Execute SQL</span>

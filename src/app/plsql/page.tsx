@@ -2,16 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader, type NavSection } from "@/components/AppHeader";
-import { InputPanel } from "@/components/InputPanel";
+import { PlSqlInputPanel } from "@/components/PlSqlInputPanel";
+import { PlSqlVisualizationPanel } from "@/components/PlSqlVisualizationPanel";
 import { DatasetModal } from "@/components/DatasetModal";
 import { ImportDatasetModal } from "@/components/ImportDatasetModal";
-import type { HistoryItem, Tab, ThemeId } from "@/components/nlSqlTypes";
-import { VisualizationPanel } from "@/components/VisualizationPanel";
 import { GuideModal } from "@/components/GuideModal";
-import { HelpView } from "@/components/HelpView";
-import { LearnView } from "@/components/LearnView";
+import { PlSqlHelpView } from "@/components/PlSqlHelpView";
+import { PlSqlLearnView } from "@/components/PlSqlLearnView";
 import { DevelopedByView } from "@/components/DevelopedByView";
 import { DownloadView } from "@/components/DownloadView";
+import type { HistoryItem, Tab, ThemeId } from "@/components/nlSqlTypes";
 import {
   DATASETS,
   getDefaultSchema,
@@ -20,12 +20,12 @@ import {
   type Table,
   type Dataset,
 } from "@/lib/schema";
-import { executeSQL, type PipelineStep, type Row } from "@/lib/sqlEngine";
-import { speakText } from "@/lib/useSpeechRecognition";
 import {
-  buildQueryExplanation,
-  type QueryExplanation,
-} from "@/lib/queryExplainer";
+  executePLSQL,
+  buildPlSqlExplanation,
+} from "@/lib/plsqlEngine";
+import type { PipelineStep, Row } from "@/lib/sqlEngine";
+import { speakText } from "@/lib/useSpeechRecognition";
 import {
   generateMarkdownReport,
   generateTextReport,
@@ -34,10 +34,14 @@ import {
   triggerFileDownload,
   type ReportExecutionData,
 } from "@/lib/reportGenerator";
+import {
+  getPlSqlDefault,
+  getPlSqlExamples,
+} from "@/lib/plsqlExamples";
 
 const CUSTOM_DATASETS_KEY = "nlp-sql-custom-datasets";
 
-export default function Home() {
+export default function PlSqlPage() {
   const [theme, setTheme] = useState<ThemeId>("slate");
   const [activeSection, setActiveSection] = useState<NavSection>("workspace");
   const [customDatasets, setCustomDatasets] = useState<Dataset[]>([]);
@@ -67,9 +71,7 @@ export default function Home() {
   );
 
   const [nlInput, setNlInput] = useState("");
-  const [sql, setSql] = useState(
-    "SELECT name, city FROM customers WHERE city = 'Mumbai';",
-  );
+  const [plsql, setPlsql] = useState<string>(() => getPlSqlDefault("ecommerce"));
   const [nlInfo, setNlInfo] = useState<{
     sql: string;
     confidence: number;
@@ -81,12 +83,12 @@ export default function Home() {
   const [steps, setSteps] = useState<PipelineStep[]>([]);
   const [finalRows, setFinalRows] = useState<Row[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
+  const [dbmsOutput, setDbmsOutput] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>();
   const [activeStep, setActiveStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [tab, setTab] = useState<Tab>("result");
-  const [explanation, setExplanation] = useState<QueryExplanation | null>(null);
   const [hasExecuted, setHasExecuted] = useState(false);
   const [lastExecutionData, setLastExecutionData] =
     useState<ReportExecutionData | null>(null);
@@ -98,12 +100,8 @@ export default function Home() {
 
   // Dynamic Central Panel Height & Window Height Measurement
   const centerPanelRef = useRef<HTMLDivElement>(null);
-  const [centerHeight, setCenterHeight] = useState<number | undefined>(
-    undefined,
-  );
-  const [windowHeight, setWindowHeight] = useState<number | undefined>(
-    undefined,
-  );
+  const [centerHeight, setCenterHeight] = useState<number | undefined>(undefined);
+  const [windowHeight, setWindowHeight] = useState<number | undefined>(undefined);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -136,12 +134,8 @@ export default function Home() {
       ro.observe(el);
       return () => ro.disconnect();
     }
-  }, [tab, activeSection, steps, finalRows, explanation]);
+  }, [tab, activeSection, steps, finalRows, dbmsOutput]);
 
-  // Pic 2 rule:
-  // - Minimum height is window height (available window height: windowHeight - header ~52px - main p-4 ~32px)
-  // - Max height is central pane's height IF central pane's height is more than screen height
-  // During SSR and initial hydration, use consistent CSS string "calc(100vh - 5.25rem)" to prevent hydration mismatches
   const availableScreenHeight =
     isMounted && windowHeight ? Math.max(350, windowHeight - 84) : undefined;
   const isCenterTallerThanScreen = Boolean(
@@ -187,16 +181,13 @@ export default function Home() {
     try {
       let savedTheme = localStorage.getItem("nlp-sql-theme") || "slate";
       const legacyMap: Record<string, ThemeId> = {
-        // "colorful-dark": "eclipse",
-        // "blue-dark": "lazuli",
         "blue-light": "pearl",
         greyscale: "slate",
-        // "high-contrast": "volt",
         dark: "slate",
         light: "pearl",
       };
       if (legacyMap[savedTheme]) savedTheme = legacyMap[savedTheme];
-      const valid: ThemeId[] = ["slate", "pearl"]; // ["eclipse", "lazuli", "volt"] commented out
+      const valid: ThemeId[] = ["slate", "pearl"];
       const activeTheme = valid.includes(savedTheme as ThemeId)
         ? (savedTheme as ThemeId)
         : "slate";
@@ -239,7 +230,7 @@ export default function Home() {
     } catch {}
 
     try {
-      const savedHistory = localStorage.getItem("nlp-sql-history");
+      const savedHistory = localStorage.getItem("nlp-plsql-history");
       if (savedHistory) {
         const parsedHistory = JSON.parse(savedHistory) as HistoryItem[];
         setHistory(parsedHistory);
@@ -247,42 +238,41 @@ export default function Home() {
     } catch {}
   }, []);
 
-  const runQuery = useCallback(
-    (query?: string, question?: string, schemaToUse?: Table[]) => {
-      const q = (query ?? sql).trim();
+  // Run PL/SQL execution
+  const runScript = useCallback(
+    (script?: string, question?: string, schemaToUse?: Table[]) => {
+      const q = (script ?? plsql).trim();
       if (!q) {
-        setError("Please enter SQL before executing.");
+        setError("Please enter a PL/SQL script before executing.");
         return;
       }
       if (timer.current) clearInterval(timer.current);
       setPlaying(false);
       const schema = schemaToUse ?? activeSchema;
       const startTime = performance.now();
-      const result = executeSQL(q, schema);
+      const result = executePLSQL(q, schema);
       const durationMs = Math.round(performance.now() - startTime);
 
       setSteps(result.steps);
       setFinalRows(result.finalRows);
       setColumns(result.columns);
+      setDbmsOutput(result.dbmsOutput);
       setError(result.error);
       setActiveStep(0);
 
-      // If DDL or DML modified the schema or rows, update activeSchema state
       if (!result.error && result.updatedSchema) {
         setActiveSchema(result.updatedSchema);
       }
 
-      // Build explanation
-      const exp = buildQueryExplanation(
+      const explanation = buildPlSqlExplanation(
         q,
         schema,
         result.steps,
         result.finalRows,
         result.columns,
-        result.statementType,
-        result.command,
+        result.dbmsOutput,
       );
-      setExplanation(exp);
+
       setHasExecuted(true);
 
       const execData: ReportExecutionData = {
@@ -294,12 +284,12 @@ export default function Home() {
         steps: result.steps,
         finalRows: result.finalRows,
         columns: result.columns,
-        explanation: exp,
+        explanation,
         error: result.error,
         executionDurationMs: durationMs,
         timestamp: new Date().toLocaleString(),
-        statementType: result.statementType,
-        command: result.command,
+        statementType: "DQL",
+        command: "SELECT",
       };
       setLastExecutionData(execData);
 
@@ -311,29 +301,29 @@ export default function Home() {
           sql: q,
           rows: result.finalRows.length,
           time: new Date().toLocaleTimeString(),
-          statementType: result.statementType,
-          command: result.command,
+          statementType: "DQL",
+          command: "SELECT",
         };
         setHistory((previous) => {
           const next = [item, ...previous].slice(0, 100);
           try {
-            localStorage.setItem("nlp-sql-history", JSON.stringify(next));
+            localStorage.setItem("nlp-plsql-history", JSON.stringify(next));
           } catch {}
           return next;
         });
       }
     },
-    [sql, nlInput, activeSchema, selectedDataset.name],
+    [plsql, nlInput, activeSchema, selectedDataset.name],
   );
 
-  // Run initial query on mount once
+  // Initial execution on mount once
   const initialRunRef = useRef(false);
   useEffect(() => {
     if (!initialRunRef.current) {
       initialRunRef.current = true;
-      runQuery("SELECT name, city FROM customers WHERE city = 'Mumbai';");
+      runScript(getPlSqlDefault("ecommerce"));
     }
-  }, [runQuery]);
+  }, [runScript]);
 
   const changeDataset = useCallback(
     (id: string) => {
@@ -341,15 +331,16 @@ export default function Home() {
         allDatasets.find((item) => item.id === id) ?? allDatasets[0];
       setSelectedDatasetId(dataset.id);
       setActiveSchema(getDefaultSchema(dataset.id, allDatasets));
-      setSql(dataset.defaultQuery);
+      const defaultScript = getPlSqlDefault(dataset.id);
+      setPlsql(defaultScript);
       setNlInput("");
       setNlInfo(null);
       setSteps([]);
       setFinalRows([]);
       setColumns([]);
+      setDbmsOutput([]);
       setError(undefined);
       setActiveStep(0);
-      setExplanation(null);
       setHasExecuted(false);
       setLastExecutionData(null);
     },
@@ -364,15 +355,16 @@ export default function Home() {
       } catch {}
     }
     setActiveSchema(getDefaultSchema(selectedDataset.id, allDatasets));
-    setSql(selectedDataset.defaultQuery);
+    const defaultScript = getPlSqlDefault(selectedDataset.id);
+    setPlsql(defaultScript);
     setNlInput("");
     setNlInfo(null);
     setSteps([]);
     setFinalRows([]);
     setColumns([]);
+    setDbmsOutput([]);
     setError(undefined);
     setActiveStep(0);
-    setExplanation(null);
     setHasExecuted(false);
     setLastExecutionData(null);
   }, [selectedDataset, allDatasets, deletedBuiltinIds.length]);
@@ -443,12 +435,13 @@ export default function Home() {
     });
     setSelectedDatasetId(savedDataset.id);
     setActiveSchema(cloneSchema(savedDataset.schema));
-    setSql(savedDataset.defaultQuery);
+    setPlsql(getPlSqlDefault(savedDataset.id));
     setNlInput("");
     setNlInfo(null);
     setSteps([]);
     setFinalRows([]);
     setColumns([]);
+    setDbmsOutput([]);
     setError(undefined);
     setActiveStep(0);
     setTab("schema");
@@ -478,6 +471,7 @@ export default function Home() {
     [],
   );
 
+  // Gemini API Translation for PL/SQL
   const translateNL = useCallback(
     async (
       params?:
@@ -493,7 +487,7 @@ export default function Home() {
       const mimeType = typeof params === "object" ? params.mimeType : undefined;
 
       if (!questionToTranslate && !audioBase64) {
-        setError("Please enter a query.");
+        setError("Please enter a PL/SQL requirement or question.");
         return;
       }
       if (questionToTranslate) {
@@ -504,6 +498,7 @@ export default function Home() {
       const isVoiceTranslation = Boolean(audioBase64);
       setIsTranslatingVoice(isVoiceTranslation);
       setIsTranslatingText(!isVoiceTranslation);
+
       try {
         const response = await fetch("/api/translate", {
           method: "POST",
@@ -514,8 +509,10 @@ export default function Home() {
             mimeType,
             datasetId: selectedDataset.id,
             schema: activeSchema,
+            mode: "plsql",
           }),
         });
+
         const result = (await response.json()) as {
           question?: string;
           sql?: string;
@@ -523,51 +520,56 @@ export default function Home() {
           interpretation?: string;
           error?: string;
         };
+
         if (!response.ok || !result.sql) {
-          throw new Error(result.error ?? "LLM translation failed.");
+          throw new Error(result.error ?? "Gemini PL/SQL translation failed.");
         }
+
         if (result.question) {
           setNlInput(result.question);
           questionToTranslate = result.question;
         }
+
         const llmResult = {
           sql: result.sql,
           confidence: result.confidence ?? 1.0,
-          interpretation: result.interpretation ?? "Generated query.",
+          interpretation: result.interpretation ?? "Generated PL/SQL block.",
         };
+
         setNlInfo(llmResult);
-        setSql(llmResult.sql);
-        runQuery(llmResult.sql, questionToTranslate);
+        setPlsql(llmResult.sql);
+        runScript(llmResult.sql, questionToTranslate);
+
         if (voiceFeedback && llmResult.interpretation) {
           speakText(llmResult.interpretation);
         }
-      } catch {
+      } catch (err: any) {
         setError(
-          "Unable to generate a valid SQL query from this request. Try being more specific.",
+          err?.message || "Unable to generate a valid PL/SQL block from this prompt. Try adding more procedural details.",
         );
       } finally {
         setIsTranslatingVoice(false);
         setIsTranslatingText(false);
       }
     },
-    [nlInput, runQuery, selectedDataset, activeSchema, voiceFeedback],
+    [nlInput, runScript, selectedDataset, activeSchema, voiceFeedback],
   );
 
   const selectExample = useCallback(
-    (question: string, query: string) => {
+    (question: string, script: string) => {
       setNlInput(question);
-      setSql(query);
-      runQuery(query, question);
+      setPlsql(script);
+      runScript(script, question);
     },
-    [runQuery],
+    [runScript],
   );
 
   const selectHistory = useCallback(
     (item: HistoryItem) => {
-      setSql(item.sql);
-      runQuery(item.sql, item.question);
+      setPlsql(item.sql);
+      runScript(item.sql, item.question);
     },
-    [runQuery],
+    [runScript],
   );
 
   const exportCSV = useCallback(() => {
@@ -580,54 +582,29 @@ export default function Home() {
         columns.map((column) => escapeValue(row[column])).join(","),
       ),
     ].join("\n");
-    download(new Blob([csv], { type: "text/csv" }), "results.csv");
+    download(new Blob([csv], { type: "text/csv" }), "plsql_output.csv");
   }, [finalRows, columns]);
 
   const exportReport = useCallback(() => {
     if (!hasExecuted || !lastExecutionData) {
-      alert("Execute a query first to generate an execution report.");
+      alert("Execute a PL/SQL block first to generate an execution report.");
       return;
     }
     const markdown = generateMarkdownReport(lastExecutionData);
     triggerFileDownload(
       new Blob([markdown], { type: "text/markdown;charset=utf-8" }),
-      "nl-to-sql-execution-report.md",
+      "plsql-execution-report.md",
     );
   }, [hasExecuted, lastExecutionData]);
 
-  const handleDownloadReport = useCallback(
-    async (format: "pdf" | "docx" | "txt") => {
-      if (!hasExecuted || !lastExecutionData) {
-        alert("Execute a query first to generate an execution report.");
-        return;
-      }
-      try {
-        if (format === "pdf") {
-          await downloadPdfReport(lastExecutionData);
-        } else if (format === "docx") {
-          await downloadDocxReport(lastExecutionData);
-        } else if (format === "txt") {
-          const text = generateTextReport(lastExecutionData);
-          triggerFileDownload(
-            new Blob([text], { type: "text/plain;charset=utf-8" }),
-            "nl-to-sql-execution-report.txt",
-          );
-        }
-      } catch (err) {
-        console.error("Report download error:", err);
-      }
-    },
-    [hasExecuted, lastExecutionData],
-  );
-
+  const current = steps[activeStep];
   const mermaidSource = useMemo(
     () => erDiagramMermaid(activeSchema),
     [activeSchema],
   );
-  const current = steps[activeStep];
 
-  // Interactive Panel Resizer Sliders state (Left panel)
-  const [leftWidth, setLeftWidth] = useState(320);
+  // Left panel resizer state
+  const [leftWidth, setLeftWidth] = useState(330);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [isResizingLeft, setIsResizingLeft] = useState(false);
 
@@ -664,24 +641,24 @@ export default function Home() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden pb-16 lg:pb-0 select-none">
-      {/* Top Bar with Navigation & Theme Selector (Permanently Fixed & Static) */}
+      {/* Top Bar with Navigation & Theme Selector */}
       <AppHeader
         theme={theme}
         onThemeChange={handleThemeChange}
         activeSection={activeSection}
         onSectionChange={setActiveSection}
-        mode="sql"
+        mode="plsql"
       />
 
       {/* Primary Content Viewport Container */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden w-full relative">
-        {/* Main Workspace (Kept mounted to preserve database, queries, and layout state) */}
+        {/* Main Workspace */}
         <main
           className={`flex-1 min-h-0 flex flex-col lg:flex-row items-start gap-0 p-4 relative overflow-y-auto ${
             activeSection === "workspace" ? "flex" : "hidden"
           }`}
         >
-          {/* Left Sidebar: Input Panel */}
+          {/* Left Sidebar: PL/SQL Input Panel */}
           <div
             style={{ width: leftCollapsed ? "0px" : `${leftWidth}px` }}
             className={`flex flex-col shrink-0 transition-[width] duration-150 ease-out overflow-hidden ${
@@ -689,7 +666,7 @@ export default function Home() {
             }`}
           >
             <div className="pr-2 h-full flex flex-col">
-              <InputPanel
+              <PlSqlInputPanel
                 datasets={allDatasets}
                 selectedDatasetId={selectedDatasetId}
                 activeSchema={activeSchema}
@@ -699,17 +676,17 @@ export default function Home() {
                 onEditDataset={handleOpenEditModal}
                 onDeleteDataset={handleDeleteDataset}
                 onOpenGuide={() => setIsGuideModalOpen(true)}
-                examples={selectedDataset.examples}
+                examples={getPlSqlExamples(selectedDatasetId)}
                 nlInput={nlInput}
                 onNlInputChange={setNlInput}
                 onTranslate={() => translateNL()}
                 nlInfo={nlInfo}
-                sql={sql}
-                onSqlChange={(newSql) => {
-                  setSql(newSql);
+                plsql={plsql}
+                onPlSqlChange={(newCode) => {
+                  setPlsql(newCode);
                   if (error) setError(undefined);
                 }}
-                onRunQuery={() => runQuery()}
+                onRunScript={() => runScript()}
                 onExampleSelect={selectExample}
                 onResetDatabase={resetDatabase}
                 error={error}
@@ -728,7 +705,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Resizer Slider Handle 1: Between Left and Center */}
+          {/* Resizer Slider Handle */}
           <div
             onMouseDown={() => setIsResizingLeft(true)}
             className="hidden lg:flex w-3 hover:w-4 items-center justify-center cursor-col-resize group relative z-10 shrink-0 transition-all self-stretch"
@@ -736,8 +713,8 @@ export default function Home() {
           >
             <div className={`w-1.5 h-12 rounded-full transition-colors flex items-center justify-center ${
               isDark
-                ? "bg-zinc-600/40 group-hover:bg-[var(--accent)]"
-                : "bg-orange-400 hover:bg-[var(--accent)] group-hover:bg-[var(--accent)] shadow-xs"
+                ? "bg-zinc-600/40 group-hover:bg-[#FF5B39]"
+                : "bg-orange-400 hover:bg-[#FF5B39] group-hover:bg-[#FF5B39] shadow-xs"
             }`}>
               <button
                 type="button"
@@ -745,9 +722,7 @@ export default function Home() {
                   e.stopPropagation();
                   setLeftCollapsed((prev) => !prev);
                 }}
-                title={
-                  leftCollapsed ? "Expand Left Panel" : "Collapse Left Panel"
-                }
+                title={leftCollapsed ? "Expand Left Panel" : "Collapse Left Panel"}
                 className="text-[9px] px-0.5 py-2 rounded bg-[var(--panel)] border border-[var(--border)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer font-bold shadow-xs text-[var(--foreground)]"
               >
                 {leftCollapsed ? "▶" : "◀"}
@@ -762,7 +737,7 @@ export default function Home() {
               mobileTab !== "canvas" ? "hidden lg:flex" : "flex"
             }`}
           >
-            <VisualizationPanel
+            <PlSqlVisualizationPanel
               tab={tab}
               onTabChange={setTab}
               steps={steps}
@@ -773,14 +748,14 @@ export default function Home() {
               onStepChange={setActiveStep}
               finalRows={finalRows}
               columns={columns}
+              dbmsOutput={dbmsOutput}
               onExportCSV={exportCSV}
               onExportReport={exportReport}
-              sql={sql}
+              plsql={plsql}
               mermaidSource={mermaidSource}
               schema={activeSchema}
               dark={isDark}
               theme={theme}
-              explanation={explanation}
               hasExecuted={hasExecuted}
             />
           </div>
@@ -797,67 +772,44 @@ export default function Home() {
             history={history}
             theme={theme}
             hasExecuted={hasExecuted}
+            onBackToWorkspace={() => setActiveSection("workspace")}
           />
         )}
-        {activeSection === "learn" && <LearnView />}
-        {activeSection === "help" && <HelpView />}
+        {activeSection === "learn" && (
+          <PlSqlLearnView onBackToWorkspace={() => setActiveSection("workspace")} />
+        )}
+        {activeSection === "help" && (
+          <PlSqlHelpView onBackToWorkspace={() => setActiveSection("workspace")} />
+        )}
         {activeSection === "developedBy" && <DevelopedByView />}
       </div>
 
-      {/* Mobile-Optimized Bottom Navigation Bar */}
+      {/* Mobile Bottom Navigation Bar */}
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 px-3 py-2 flex items-center justify-between shadow-lg"
         aria-label="Mobile bottom navigation"
       >
-        {/* Help button at bottom-left */}
         <button
           type="button"
           onClick={() => setActiveSection("help")}
           className="flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-          aria-label="Open help and documentation"
         >
-          <svg
-            className="w-5 h-5 opacity-80"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
+          <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span className="text-xs font-medium">Help</span>
         </button>
 
-        {/* Input vs Canvas toggle buttons */}
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setMobileTab("canvas")}
             className="flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-lg transition-colors cursor-pointer"
             style={{
-              background:
-                mobileTab === "canvas" ? "var(--surface-hover)" : "transparent",
+              background: mobileTab === "canvas" ? "var(--surface-hover)" : "transparent",
               color: "var(--foreground)",
             }}
-            aria-label="View Canvas"
           >
-            <svg
-              className="w-5 h-5 opacity-80"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
-              />
-            </svg>
             <span className="text-xs font-medium">Canvas</span>
           </button>
 
@@ -866,25 +818,10 @@ export default function Home() {
             onClick={() => setMobileTab("input")}
             className="flex flex-col items-center justify-center gap-1 px-3 py-1 rounded-lg transition-colors cursor-pointer"
             style={{
-              background:
-                mobileTab === "input" ? "var(--surface-hover)" : "transparent",
+              background: mobileTab === "input" ? "var(--surface-hover)" : "transparent",
               color: "var(--foreground)",
             }}
-            aria-label="Toggle input panel"
           >
-            <svg
-              className="w-5 h-5 opacity-80"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
             <span className="text-xs font-medium">Input</span>
           </button>
         </div>

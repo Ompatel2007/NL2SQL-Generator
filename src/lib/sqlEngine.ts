@@ -73,7 +73,7 @@ export interface ParsedSelectQuery {
     right: string;
     type: "INNER" | "LEFT";
   }[];
-  where?: { column: string; op: string; value: string };
+  where?: { column: string; op: string; value: string; fn?: "UPPER" | "LOWER" };
   groupBy?: string;
   having?: { agg: string; op: string; value: number };
   orderBy?: { expr: string; dir: "ASC" | "DESC"; isAggIndex?: boolean };
@@ -91,13 +91,13 @@ export interface ParsedUpdateQuery {
   type: "UPDATE";
   table: string;
   set: { column: string; value: string | number }[];
-  where?: { column: string; op: string; value: string };
+  where?: { column: string; op: string; value: string; fn?: "UPPER" | "LOWER" };
 }
 
 export interface ParsedDeleteQuery {
   type: "DELETE";
   table: string;
-  where?: { column: string; op: string; value: string };
+  where?: { column: string; op: string; value: string; fn?: "UPPER" | "LOWER" };
 }
 
 export interface ParsedCreateTableQuery {
@@ -742,15 +742,22 @@ function parseSelect(q: string, schema: Table[]): ParsedSelectQuery {
     if (/==+/.test(where)) {
       throw new Error("Invalid operator '=='. In SQL, use '=' for equality.");
     }
-    const m = where.match(/^([\w.]+)\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
+    const m = where.match(/^(?:(UPPER|LOWER)\s*\(\s*([\w.]+)\s*\)|([\w.]+))\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
     if (!m) {
       throw new Error(
         "Only single-condition WHERE (column operator value) is supported.",
       );
     }
-    const val = m[3].trim();
+    const colFn = (m[1]?.toUpperCase() as "UPPER" | "LOWER") || undefined;
+    const colName = m[2] || m[3];
+    const op = m[4].toUpperCase();
+    let val = m[5].trim();
+    const valFnMatch = val.match(/^(?:UPPER|LOWER)\s*\(\s*(.+?)\s*\)$/i);
+    if (valFnMatch) {
+      val = valFnMatch[1].trim();
+    }
     if (!val || /^[=<>!;&|]+$/.test(val)) {
-      throw new Error(`Missing or invalid value after '${m[2]}' in WHERE condition.`);
+      throw new Error(`Missing or invalid value after '${op}' in WHERE condition.`);
     }
     const isStringLit = /^'([^'\\]|\\.)*'$/.test(val) || /^"([^"\\]|\\.)*"$/.test(val);
     const isNumLit = /^-?\d+(\.\d+)?$/.test(val);
@@ -760,9 +767,10 @@ function parseSelect(q: string, schema: Table[]): ParsedSelectQuery {
       throw new Error(`Invalid value syntax in WHERE condition: "${val}"`);
     }
     parsed.where = {
-      column: m[1],
-      op: m[2].toUpperCase(),
+      column: colName,
+      op,
       value: unquote(val),
+      fn: colFn,
     };
   }
 
@@ -918,19 +926,26 @@ function parseUpdate(q: string, schema: Table[]): ParsedUpdateQuery {
     return { column: col, value: val };
   });
 
-  let where: { column: string; op: string; value: string } | undefined;
+  let where: ParsedUpdateQuery["where"];
   if (match[3]) {
     const whereStr = match[3].trim();
     if (/==+/.test(whereStr)) {
       throw new Error("Invalid operator '=='. In SQL, use '=' for equality.");
     }
-    const wm = whereStr.match(/^([\w.]+)\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
+    const wm = whereStr.match(/^(?:(UPPER|LOWER)\s*\(\s*([\w.]+)\s*\)|([\w.]+))\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
     if (!wm) {
       throw new Error("Invalid WHERE clause in UPDATE statement.");
     }
-    const val = wm[3].trim();
+    const colFn = (wm[1]?.toUpperCase() as "UPPER" | "LOWER") || undefined;
+    const colName = wm[2] || wm[3];
+    const op = wm[4].toUpperCase();
+    let val = wm[5].trim();
+    const valFnMatch = val.match(/^(?:UPPER|LOWER)\s*\(\s*(.+?)\s*\)$/i);
+    if (valFnMatch) {
+      val = valFnMatch[1].trim();
+    }
     if (!val || /^[=<>!;&|]+$/.test(val)) {
-      throw new Error(`Missing or invalid value after '${wm[2]}' in WHERE condition.`);
+      throw new Error(`Missing or invalid value after '${op}' in WHERE condition.`);
     }
     const isStringLit = /^'([^'\\]|\\.)*'$/.test(val) || /^"([^"\\]|\\.)*"$/.test(val);
     const isNumLit = /^-?\d+(\.\d+)?$/.test(val);
@@ -940,9 +955,10 @@ function parseUpdate(q: string, schema: Table[]): ParsedUpdateQuery {
       throw new Error(`Invalid value syntax in WHERE condition: "${val}"`);
     }
     where = {
-      column: wm[1],
-      op: wm[2].toUpperCase(),
+      column: colName,
+      op,
       value: unquote(val),
+      fn: colFn,
     };
   }
 
@@ -976,19 +992,26 @@ function parseDelete(q: string, schema: Table[]): ParsedDeleteQuery {
     throw new Error(`Table "${tableName}" does not exist.`);
   }
 
-  let where: { column: string; op: string; value: string } | undefined;
+  let where: ParsedDeleteQuery["where"];
   if (match[2]) {
     const whereStr = match[2].trim();
     if (/==+/.test(whereStr)) {
       throw new Error("Invalid operator '=='. In SQL, use '=' for equality.");
     }
-    const wm = whereStr.match(/^([\w.]+)\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
+    const wm = whereStr.match(/^(?:(UPPER|LOWER)\s*\(\s*([\w.]+)\s*\)|([\w.]+))\s*(>=|<=|!=|<>|=|LIKE|>|<)\s*(.+)$/i);
     if (!wm) {
       throw new Error("Invalid WHERE clause in DELETE statement.");
     }
-    const val = wm[3].trim();
+    const colFn = (wm[1]?.toUpperCase() as "UPPER" | "LOWER") || undefined;
+    const colName = wm[2] || wm[3];
+    const op = wm[4].toUpperCase();
+    let val = wm[5].trim();
+    const valFnMatch = val.match(/^(?:UPPER|LOWER)\s*\(\s*(.+?)\s*\)$/i);
+    if (valFnMatch) {
+      val = valFnMatch[1].trim();
+    }
     if (!val || /^[=<>!;&|]+$/.test(val)) {
-      throw new Error(`Missing or invalid value after '${wm[2]}' in WHERE condition.`);
+      throw new Error(`Missing or invalid value after '${op}' in WHERE condition.`);
     }
     const isStringLit = /^'([^'\\]|\\.)*'$/.test(val) || /^"([^"\\]|\\.)*"$/.test(val);
     const isNumLit = /^-?\d+(\.\d+)?$/.test(val);
@@ -998,9 +1021,10 @@ function parseDelete(q: string, schema: Table[]): ParsedDeleteQuery {
       throw new Error(`Invalid value syntax in WHERE condition: "${val}"`);
     }
     where = {
-      column: wm[1],
-      op: wm[2].toUpperCase(),
+      column: colName,
+      op,
       value: unquote(val),
+      fn: colFn,
     };
   }
 
@@ -1347,10 +1371,16 @@ function executeSelect(
     const fn = OPS[p.where.op];
     if (!fn) throw new Error(`Unknown operator ${p.where.op}`);
     const val = coerce(p.where.value);
-    rows = rows.filter((r) => fn(resolveCol(r, p.where!.column), val));
+    rows = rows.filter((r) => {
+      let cell = resolveCol(r, p.where!.column);
+      if (p.where!.fn === "UPPER" && cell != null) cell = String(cell).toUpperCase();
+      else if (p.where!.fn === "LOWER" && cell != null) cell = String(cell).toLowerCase();
+      return fn(cell, val);
+    });
+    const colDisplay = p.where.fn ? `${p.where.fn}(${p.where.column})` : p.where.column;
     push(
       "WHERE",
-      `Filter (${p.where.column} ${p.where.op} ${p.where.value})`,
+      `Filter (${colDisplay} ${p.where.op} ${p.where.value})`,
       `Selection predicate applied to each row: kept ${rows.length} of ${before} rows (O(n) scan).`,
       rows.slice(0, 50),
       Object.keys(rows[0] ?? {}),
@@ -1736,12 +1766,18 @@ function executeUpdate(
     if (!fn) throw new Error(`Unknown operator ${p.where.op}`);
     const val = coerce(p.where.value);
     matchIndices = table.rows
-      .map((r, i) => (fn(resolveCol(r, p.where!.column), val) ? i : -1))
+      .map((r, i) => {
+        let cell = resolveCol(r, p.where!.column);
+        if (p.where!.fn === "UPPER" && cell != null) cell = String(cell).toUpperCase();
+        else if (p.where!.fn === "LOWER" && cell != null) cell = String(cell).toLowerCase();
+        return fn(cell, val) ? i : -1;
+      })
       .filter((i) => i !== -1);
 
+    const colDisplay = p.where.fn ? `${p.where.fn}(${p.where.column})` : p.where.column;
     push(
       "WHERE",
-      `Filter (${p.where.column} ${p.where.op} ${p.where.value})`,
+      `Filter (${colDisplay} ${p.where.op} ${p.where.value})`,
       `Located ${matchIndices.length} matching candidate row(s) to update out of ${table.rows.length} total rows.`,
       matchIndices.map((i) => table.rows[i]),
       colNames,
@@ -1838,16 +1874,21 @@ function executeDelete(
     const val = coerce(p.where.value);
 
     for (const r of table.rows) {
-      if (fn(resolveCol(r, p.where.column), val)) {
+      let cell = resolveCol(r, p.where.column);
+      if (p.where.fn === "UPPER" && cell != null) cell = String(cell).toUpperCase();
+      else if (p.where.fn === "LOWER" && cell != null) cell = String(cell).toLowerCase();
+
+      if (fn(cell, val)) {
         toDelete.push(r);
       } else {
         remaining.push(r);
       }
     }
 
+    const colDisplay = p.where.fn ? `${p.where.fn}(${p.where.column})` : p.where.column;
     push(
       "WHERE",
-      `Filter (${p.where.column} ${p.where.op} ${p.where.value})`,
+      `Filter (${colDisplay} ${p.where.op} ${p.where.value})`,
       `Identified ${toDelete.length} row(s) matching delete criteria out of ${table.rows.length} total rows.`,
       toDelete,
       colNames,

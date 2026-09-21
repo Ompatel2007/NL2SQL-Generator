@@ -13,6 +13,7 @@ const requestSchema = z
     mimeType: z.string().optional(),
     datasetId: z.string().min(1),
     schema: z.array(z.any()).optional(),
+    mode: z.enum(["sql", "plsql"]).optional(),
   })
   .refine((data) => Boolean(data.question || data.audioBase64), {
     message: "Either question or audioBase64 must be provided.",
@@ -27,7 +28,7 @@ const audioResponseSchema = z.object({
   question: z
     .string()
     .describe("Transcribed natural language question spoken in the audio"),
-  sql: z.string().describe("Generated SQL query matching the schema"),
+  sql: z.string().describe("Generated SQL or PL/SQL matching the schema"),
   interpretation: z
     .string()
     .describe("Brief 1-sentence interpretation of the query"),
@@ -48,6 +49,8 @@ export async function POST(request: Request) {
 
     const rawBody = await request.json();
     const body = requestSchema.parse(rawBody);
+    const mode = body.mode || "sql";
+    const isPlSql = mode === "plsql";
     const dataset = DATASETS.find((item) => item.id === body.datasetId);
     const currentSchema: Table[] =
       body.schema && body.schema.length > 0
@@ -61,31 +64,42 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fast-path: if question is already a direct SQL statement, validate and return directly
+    // Fast-path: if question is already direct SQL or direct PL/SQL
     if (body.question) {
       const q = body.question.trim().replace(/;+$/, "");
-      if (
-        /^(select|insert\s+into|insert|update|delete\s+from|delete|create\s+table|drop\s+table|alter\s+table|truncate)\b/i.test(
-          q,
-        )
-      ) {
-        try {
-          parseSQL(q, currentSchema);
+      if (isPlSql) {
+        if (/^(declare|begin|create\s+(or\s+replace\s+)?(procedure|function|trigger))\b/i.test(q)) {
           return NextResponse.json({
             question: body.question,
-            sql: q + ";",
+            sql: body.question.trim(),
             confidence: 1.0,
-            interpretation: `Direct SQL execution: ${q.slice(0, 50)}...`,
+            interpretation: `Direct PL/SQL execution: ${q.slice(0, 50)}...`,
           });
-        } catch {
-          // If direct parse failed, let LLM interpret it
+        }
+      } else {
+        if (
+          /^(select|insert\s+into|insert|update|delete\s+from|delete|create\s+table|drop\s+table|alter\s+table|truncate)\b/i.test(
+            q,
+          )
+        ) {
+          try {
+            parseSQL(q, currentSchema);
+            return NextResponse.json({
+              question: body.question,
+              sql: q + ";",
+              confidence: 1.0,
+              interpretation: `Direct SQL execution: ${q.slice(0, 50)}...`,
+            });
+          } catch {
+            // If direct parse failed, let LLM interpret it
+          }
         }
       }
     }
 
     const google = createGoogleGenerativeAI({ apiKey });
 
-    const systemPrompt = `You translate natural-language database questions or instructions into standard SQL for an educational database engine.
+    const sqlSystemPrompt = `You translate natural-language database questions or instructions into standard SQL for an educational database engine.
 Tables and schema available in this database:
 ${JSON.stringify(currentSchema, null, 2)}
 
@@ -101,6 +115,29 @@ Supported SQL Statements:
 
 Use exact table and column names matching the schema (case-insensitive). Return only valid SQL matching the engine's supported syntax. Do not output markdown fences or comments.`;
 
+    const plsqlSystemPrompt = `You translate natural-language database procedural questions, automation instructions, or business logic into standard Oracle PL/SQL for an educational database engine.
+Tables and schema available in this database:
+${JSON.stringify(currentSchema, null, 2)}
+
+Requirements for PL/SQL Output:
+1. Return a standard, complete PL/SQL executable block:
+DECLARE
+  -- variable declarations (NUMBER, VARCHAR2, DATE), cursors, constants
+BEGIN
+  -- procedural statements, cursor loops, IF-THEN-ELSIF-ELSE, DML, calculations
+  DBMS_OUTPUT.PUT_LINE(...);
+EXCEPTION
+  WHEN ... THEN ...
+END;
+2. Or a valid CREATE OR REPLACE PROCEDURE / FUNCTION / TRIGGER if requested.
+3. Always include informative DBMS_OUTPUT.PUT_LINE calls to display progress, calculations, or status messages.
+4. Use exact table and column names matching the schema (case-insensitive).
+5. Ensure strings use single quotes and string concatenation uses || (e.g. 'Found ' || v_count).
+6. In WHERE clauses, use direct column comparisons matching the data (e.g. WHERE city = 'Mumbai', WHERE status = 'shipped').
+7. Do NOT include markdown code fences (\`\`\`) or commentary outside the PL/SQL code. Return only valid PL/SQL.`;
+
+    const systemPrompt = isPlSql ? plsqlSystemPrompt : sqlSystemPrompt;
+
     let generatedSql = "";
     let interpretation = "";
     let transcribedQuestion = body.question || "";
@@ -108,7 +145,7 @@ Use exact table and column names matching the schema (case-insensitive). Return 
     const modelName = "gemini-3.6-flash";
 
     if (body.audioBase64) {
-      // Direct audio voice-to-SQL processing via Gemini multimodal capabilities
+      // Direct audio voice processing via Gemini multimodal capabilities
       const result = await Promise.race([
         generateObject({
           model: google(modelName),
@@ -120,7 +157,9 @@ Use exact table and column names matching the schema (case-insensitive). Return 
               content: [
                 {
                   type: "text",
-                  text: "Listen to the spoken audio and translate it into a valid SQL query matching the schema. Provide the transcribed question and interpretation.",
+                  text: isPlSql
+                    ? "Listen to the spoken audio and translate it into a valid Oracle PL/SQL block matching the database schema. Provide the transcribed question and interpretation."
+                    : "Listen to the spoken audio and translate it into a valid SQL query matching the schema. Provide the transcribed question and interpretation.",
                 },
                 {
                   type: "file",
@@ -136,7 +175,7 @@ Use exact table and column names matching the schema (case-insensitive). Return 
         ),
       ]);
 
-      generatedSql = result.object.sql;
+      generatedSql = result.object.sql.trim();
       interpretation = result.object.interpretation;
       transcribedQuestion = result.object.question;
     } else {
@@ -153,21 +192,37 @@ Use exact table and column names matching the schema (case-insensitive). Return 
         ),
       ]);
 
-      generatedSql = result.object.sql;
+      generatedSql = result.object.sql.trim();
       interpretation = result.object.interpretation;
     }
 
-    try {
-      validateSQLAgainstSchema(generatedSql, dataset?.schema ?? currentSchema);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Generated SQL is unsupported.";
-      return NextResponse.json(
-        { error: `The LLM returned unusable SQL: ${message}` },
-        { status: 422 },
-      );
+    // Clean up any stray markdown fences
+    generatedSql = generatedSql.replace(/^```(?:sql|plsql)?\s*/i, "").replace(/\s*```$/, "").trim();
+
+    if (!isPlSql) {
+      try {
+        validateSQLAgainstSchema(generatedSql, dataset?.schema ?? currentSchema);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Generated SQL is unsupported.";
+        return NextResponse.json(
+          { error: `The LLM returned unusable SQL: ${message}` },
+          { status: 422 },
+        );
+      }
+    } else {
+      // PL/SQL basic syntax verification
+      if (
+        !/begin\b/i.test(generatedSql) &&
+        !/create\s+(or\s+replace\s+)?(procedure|function|trigger)\b/i.test(generatedSql)
+      ) {
+        return NextResponse.json(
+          { error: "The generated PL/SQL block does not contain a valid BEGIN...END structure." },
+          { status: 422 },
+        );
+      }
     }
 
     return NextResponse.json({

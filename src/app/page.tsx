@@ -894,9 +894,8 @@ export default function App() {
         />
 
         {/* PL/SQL Button */}
-        <button
-          type="button"
-          onClick={handlePlSqlClick}
+        <Link
+          href="/plsql"
           className="flex-1 flex items-center justify-center gap-3 text-sm font-semibold transition-all duration-300 cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 focus-visible:ring-inset"
           style={{
             background: "#280934",
@@ -906,11 +905,11 @@ export default function App() {
             backdropFilter: "blur(16px)",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background =
+            (e.currentTarget as HTMLElement).style.background =
               "rgba(83, 31, 102, .8)";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background =
+            (e.currentTarget as HTMLElement).style.background =
               "#280934";
           }}
         >
@@ -930,7 +929,7 @@ export default function App() {
             />
           </svg>
           Start scripting
-        </button>
+        </Link>
       </div>
     </div>
   );
